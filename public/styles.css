@@ -150,6 +150,47 @@ a {
   border-left: 4px solid #ff5b5b;
 }
 
+.risk-zone {
+  background: rgba(255, 0, 0, 0.18);
+}
+
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel {
+  margin-top: 16px;
+}
+
+.team-delete-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.team-checklist {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid #edf0f6;
+  border-radius: 12px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.team-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
 .card h1 {
   font-size: 42px;
   font-weight: 700;

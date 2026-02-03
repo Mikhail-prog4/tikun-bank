@@ -22,6 +22,14 @@ module.exports = async (req, res) => {
     try {
       const body = await parseBody(req);
       if (body.delete) {
+        if (Array.isArray(body.ids) && body.ids.length) {
+          const { error } = await supabase
+            .from("teams")
+            .update({ is_active: false })
+            .in("id", body.ids);
+          if (error) throw error;
+          return json(res, 200, { ok: true });
+        }
         if (!body.id) return json(res, 400, { error: "Не указан id" });
         const { error } = await supabase
           .from("teams")

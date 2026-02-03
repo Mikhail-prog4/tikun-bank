@@ -68,10 +68,6 @@ module.exports = async (req, res) => {
       dataSheet.getCell(`B${row}`).numFmt = "0.00";
     }
 
-    if (!teamNames.length) {
-      dataSheet.getCell("A3").value = "Нет команд";
-    }
-
     listSheet.state = "hidden";
 
     const buffer = await workbook.xlsx.writeBuffer();

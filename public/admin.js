@@ -35,14 +35,6 @@ const adminContent = document.getElementById("admin-content");
 const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
 
-const settingsForm = document.getElementById("settings-form");
-const settingsWeek = document.getElementById("settings-week");
-const settingsPassword = document.getElementById("settings-password");
-const resetInitBtn = document.getElementById("reset-init-btn");
-const settingsSubmitBtn = settingsForm
-  ? settingsForm.querySelector('button[type="submit"]')
-  : null;
-
 const uploadForm = document.getElementById("upload-form");
 const uploadFile = document.getElementById("upload-file");
 const uploadWeek = document.getElementById("upload-week");
@@ -60,17 +52,13 @@ const tikunSubmitBtn = tikunForm
   ? tikunForm.querySelector('button[type="submit"]')
   : null;
 
-const teamAddForm = document.getElementById("team-add-form");
-const teamNameInput = document.getElementById("team-name");
-const teamsList = document.getElementById("teams-list");
-const teamDeleteForm = document.getElementById("team-delete-form");
-const teamDeleteSelect = document.getElementById("team-delete-select");
-const teamAddBtn = teamAddForm
-  ? teamAddForm.querySelector('button[type="submit"]')
-  : null;
-const teamDeleteBtn = teamDeleteForm
-  ? teamDeleteForm.querySelector('button[type="submit"]')
-  : null;
+const teamDeleteSearch = document.getElementById("team-delete-search");
+const teamDeleteList = document.getElementById("team-delete-list");
+const teamDeleteCount = document.getElementById("team-delete-count");
+const teamDeleteResult = document.getElementById("team-delete-result");
+const teamSelectAllBtn = document.getElementById("team-select-all");
+const teamClearAllBtn = document.getElementById("team-clear-all");
+const teamDeleteSubmitBtn = document.getElementById("team-delete-submit");
 
 const productAddForm = document.getElementById("product-add-form");
 const productNameInput = document.getElementById("product-name");
@@ -85,12 +73,19 @@ const productAddBtn = productAddForm
 const ordersFilter = document.getElementById("orders-filter");
 const ordersList = document.getElementById("orders-list");
 
+const toggleDeleteTeamBtn = document.getElementById("toggle-delete-team");
+const toggleProductsBtn = document.getElementById("toggle-products");
+const toggleOrdersBtn = document.getElementById("toggle-orders");
+const teamDeletePanel = document.getElementById("team-delete-panel");
+const productsPanel = document.getElementById("products-panel");
+const ordersPanel = document.getElementById("orders-panel");
+
 let pendingUploadRows = [];
+let selectedTeamIds = new Set();
 let cachedTeams = [];
 let cachedProducts = [];
 let cachedOrders = [];
 let cachedBalanceHistory = [];
-let cachedSettings = null;
 
 const getToken = () => sessionStorage.getItem("adminToken");
 
@@ -144,68 +139,72 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
-settingsForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    await withButtonLoading(settingsSubmitBtn, "Сохранение...", async () => {
-      const weekValue = Number(settingsWeek.value) || cachedSettings.current_week;
-      await adminFetch("/api/admin_settings", {
-        method: "POST",
-        body: JSON.stringify({
-          current_week: Math.min(Math.max(weekValue, 1), 12),
-          password: settingsPassword.value.trim() || null,
-        }),
-      });
-      settingsPassword.value = "";
-      await refreshSettings();
-    });
-  } catch (error) {
-    alert("Не удалось сохранить настройки.");
-  }
-});
+const togglePanel = (panel) => {
+  if (!panel) return;
+  panel.classList.toggle("hidden");
+};
 
-resetInitBtn.addEventListener("click", async () => {
-  const ok = confirm("Точно сбросить? Все данные будут удалены.");
-  if (!ok) return;
-  try {
-    await withButtonLoading(resetInitBtn, "Сброс...", async () => {
-      const result = await adminFetch("/api/admin_reset_init", {
-        method: "POST",
-      });
-      alert(result.message || "База сброшена");
-      await loadAdminData();
-    });
-  } catch (error) {
-    alert("Не удалось выполнить сброс.");
-  }
-});
+if (toggleDeleteTeamBtn) {
+  toggleDeleteTeamBtn.addEventListener("click", () => {
+    togglePanel(teamDeletePanel);
+  });
+}
+
+if (toggleProductsBtn) {
+  toggleProductsBtn.addEventListener("click", () => {
+    togglePanel(productsPanel);
+  });
+}
+
+if (toggleOrdersBtn) {
+  toggleOrdersBtn.addEventListener("click", () => {
+    togglePanel(ordersPanel);
+  });
+}
 
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!uploadFile.files[0]) return;
   const arrayBuffer = await uploadFile.files[0].arrayBuffer();
   const workbook = XLSX.read(arrayBuffer, { type: "array" });
-  const sheetName = workbook.SheetNames.find(
-    (name) => name.trim().toLowerCase() === "оценки"
-  );
-  const sheet = workbook.Sheets[sheetName || workbook.SheetNames[0]];
+  const sheetNames = workbook.SheetNames || [];
+  const preferredSheet =
+    sheetNames.find((name) => /^(оценки|рейтинг|data)$/i.test(name.trim())) ||
+    sheetNames[0];
+  const sheet = workbook.Sheets[preferredSheet];
   const rows = XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     raw: false,
     defval: "",
   });
-  const parsed = parseExcelRows(rows);
+  const parsed = parseExcelRows(rows, sheet, preferredSheet);
   if (parsed.errorCode === "TOTAL_COLUMN_NOT_FOUND") {
     alert("Не найден столбец ИТОГО. Проверьте шаблон.");
     return;
   }
   if (parsed.errorCode === "VALIDATION_FAILED") {
+    const first = parsed.rowErrors[0];
+    if (first && first.reason === "empty team") {
+      alert(
+        `Row ${first.row}: team extracted as empty, rawValueType=${first.rawValueType}, rawValue=${first.rawValue}, merged=${first.merged}, sheet=${first.sheet}`
+      );
+      return;
+    }
+    const details = parsed.rowErrors
+      .slice(0, 5)
+      .map((item) => `${item.row}${item.reason ? ` (${item.reason})` : ""}`)
+      .join(", ");
+    alert(`Ошибки в строках: ${details}`);
+    return;
+  }
+  if (parsed.errorCode === "EXPECTED_COUNT_MISMATCH") {
     alert(
-      `Ошибки в строках: ${parsed.rowErrors
-        .slice(0, 5)
-        .map((item) => item.row)
-        .join(", ")}`
+      `Ожидалось 22 команды (B4:B25), получено ${parsed.actual}. Проверь файл/диапазон.`
     );
+    return;
+  }
+  if (parsed.errorCode === "EMPTY_TEAM_EXTRACTED") {
+    alert(parsed.message || "Некорректные данные в строках.");
     return;
   }
   pendingUploadRows = parsed.rows;
@@ -275,42 +274,83 @@ tikunForm.addEventListener("submit", async (event) => {
   }
 });
 
-teamAddForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const name = teamNameInput.value.trim();
-  if (!name) return;
-  try {
-    await withButtonLoading(teamAddBtn, "Сохранение...", async () => {
-      await adminFetch("/api/admin_teams", {
-        method: "POST",
-        body: JSON.stringify({ name }),
-      });
-      teamAddForm.reset();
-      await refreshTeams();
-    });
-  } catch (error) {
-    alert("Не удалось добавить команду.");
-  }
-});
+if (teamDeleteSearch) {
+  teamDeleteSearch.addEventListener("input", () => {
+    renderTeams();
+  });
+}
 
-teamDeleteForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const teamId = teamDeleteSelect.value;
-  if (!teamId) return;
-  const ok = confirm("Удалить команду? Действие необратимо.");
-  if (!ok) return;
-  try {
-    await withButtonLoading(teamDeleteBtn, "Удаление...", async () => {
-      await adminFetch("/api/admin_teams", {
-        method: "POST",
-        body: JSON.stringify({ id: teamId, delete: true }),
+if (teamSelectAllBtn) {
+  teamSelectAllBtn.addEventListener("click", async () => {
+    const teamsForSelects = await loadTeamsForSelects();
+    teamsForSelects
+      .filter((team) => team.is_active !== false)
+      .forEach((team) => selectedTeamIds.add(team.id));
+    renderTeams();
+  });
+}
+
+if (teamClearAllBtn) {
+  teamClearAllBtn.addEventListener("click", () => {
+    selectedTeamIds.clear();
+    renderTeams();
+  });
+}
+
+if (teamDeleteSubmitBtn) {
+  teamDeleteSubmitBtn.addEventListener("click", async () => {
+    const ids = Array.from(selectedTeamIds);
+    if (!ids.length) return;
+    const ok = confirm(`Удалить команды (${ids.length})?`);
+    if (!ok) return;
+    const originalText = teamDeleteSubmitBtn.textContent;
+    teamDeleteSubmitBtn.disabled = true;
+    teamDeleteSubmitBtn.textContent = "Удаление...";
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          adminFetch("/api/admin_teams", {
+            method: "POST",
+            body: JSON.stringify({ id, delete: true }),
+          })
+        )
+      );
+      const errors = [];
+      results.forEach((result, idx) => {
+        if (result.status === "rejected") {
+          const id = ids[idx];
+          const team = cachedTeams.find((item) => item.id === id);
+          errors.push(`${team ? team.name : id}: ${result.reason?.message || "ошибка"}`);
+        }
       });
+
+      selectedTeamIds.clear();
       await refreshTeams();
-    });
-  } catch (error) {
-    alert("Не удалось удалить команду.");
-  }
-});
+      renderTeams();
+
+      if (errors.length) {
+        if (teamDeleteResult) {
+          teamDeleteResult.textContent = `Ошибки удаления: ${errors.join("; ")}`;
+        }
+        flashButton(teamDeleteSubmitBtn, false);
+      } else {
+        if (teamDeleteResult) {
+          teamDeleteResult.textContent = `Удалено команд: ${ids.length}`;
+        }
+        flashButton(teamDeleteSubmitBtn, true);
+      }
+    } catch (error) {
+      if (teamDeleteResult) {
+        teamDeleteResult.textContent = "Не удалось удалить команды.";
+      }
+      flashButton(teamDeleteSubmitBtn, false);
+      alert("Не удалось удалить команды.");
+    } finally {
+      teamDeleteSubmitBtn.disabled = false;
+      teamDeleteSubmitBtn.textContent = originalText;
+    }
+  });
+}
 
 productAddForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -371,13 +411,6 @@ const refreshProducts = async () => {
   renderProducts();
 };
 
-const refreshSettings = async () => {
-  const payload = await adminFetch("/api/admin_settings");
-  cachedSettings = payload.settings;
-  settingsWeek.value = cachedSettings.current_week;
-  uploadWeek.value = cachedSettings.current_week;
-};
-
 const refreshBalanceHistory = async () => {
   const payload = await adminFetch("/api/admin_tikuns_adjust");
   cachedBalanceHistory = payload.history || [];
@@ -423,77 +456,54 @@ const renderTikuns = async () => {
 };
 
 const renderTeams = async () => {
-  teamsList.innerHTML = "";
-  teamDeleteSelect.innerHTML = "";
-  teamDeleteSelect.appendChild(new Option("Выберите команду", ""));
+  if (!teamDeleteList || !teamDeleteCount) return;
   const teamsForSelects = await loadTeamsForSelects();
-  if (!teamsForSelects.length) {
-    teamDeleteSelect.innerHTML = "";
-    teamDeleteSelect.appendChild(new Option("Нет команд", ""));
-    teamDeleteSelect.disabled = true;
-    if (teamDeleteBtn) teamDeleteBtn.disabled = true;
+  const activeTeams = teamsForSelects.filter((team) => team.is_active !== false);
+  const query = (teamDeleteSearch && teamDeleteSearch.value || "")
+    .trim()
+    .toLowerCase();
+  const filtered = query
+    ? activeTeams.filter((team) => team.name.toLowerCase().includes(query))
+    : activeTeams;
+
+  selectedTeamIds = new Set(
+    [...selectedTeamIds].filter((id) => activeTeams.some((t) => t.id === id))
+  );
+
+  teamDeleteList.innerHTML = "";
+  if (!filtered.length) {
+    teamDeleteList.innerHTML = `<div class="muted">Нет команд</div>`;
+    teamDeleteCount.textContent = "Выбрано: 0";
+    if (teamDeleteSubmitBtn) teamDeleteSubmitBtn.disabled = true;
     return;
   }
-  teamDeleteSelect.disabled = false;
-  if (teamDeleteBtn) teamDeleteBtn.disabled = false;
-  teamsForSelects.forEach((team) => {
-    const option = document.createElement("option");
-    option.value = team.id;
-    option.textContent = team.name;
-    teamDeleteSelect.appendChild(option);
+
+  filtered.forEach((team) => {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = team.id;
+    checkbox.checked = selectedTeamIds.has(team.id);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) {
+        selectedTeamIds.add(team.id);
+      } else {
+        selectedTeamIds.delete(team.id);
+      }
+      teamDeleteCount.textContent = `Выбрано: ${selectedTeamIds.size}`;
+      if (teamDeleteSubmitBtn) {
+        teamDeleteSubmitBtn.disabled = selectedTeamIds.size === 0;
+      }
+    });
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(team.name));
+    teamDeleteList.appendChild(label);
   });
 
-  if (!cachedTeams.length) return;
-  cachedTeams.forEach((team) => {
-
-    const item = document.createElement("div");
-    item.className = "list-item";
-    item.innerHTML = `
-      <div>
-        <input type="text" value="${team.name}" class="team-name-input" />
-        <div class="meta">Баланс: ${formatMoney(team.tikuns_balance)} ₮</div>
-        <div class="meta">${team.is_active ? "Активна" : "Выбывшая"}</div>
-      </div>
-      <div class="actions">
-        <button class="secondary-btn" data-action="save">Сохранить</button>
-        <button class="danger-btn" data-action="toggle">
-          ${team.is_active ? "Удалить из рейтинга" : "Вернуть"}
-        </button>
-      </div>
-    `;
-    const input = item.querySelector(".team-name-input");
-    const saveBtn = item.querySelector('[data-action="save"]');
-    const toggleBtn = item.querySelector('[data-action="toggle"]');
-    saveBtn.onclick = async () => {
-      const updated = input.value.trim();
-      if (!updated) return;
-      try {
-        await withButtonLoading(saveBtn, "Сохранение...", async () => {
-          await adminFetch("/api/admin_teams", {
-            method: "POST",
-            body: JSON.stringify({ id: team.id, name: updated }),
-          });
-          await refreshTeams();
-        });
-      } catch (error) {
-        alert("Не удалось сохранить команду.");
-      }
-    };
-    toggleBtn.onclick = async () => {
-      try {
-        await withButtonLoading(toggleBtn, "Сохранение...", async () => {
-          await adminFetch("/api/admin_teams", {
-            method: "POST",
-            body: JSON.stringify({ id: team.id, is_active: !team.is_active }),
-          });
-          await refreshTeams();
-        });
-      } catch (error) {
-        alert("Не удалось обновить команду.");
-      }
-    };
-    teamsList.appendChild(item);
-  });
+  teamDeleteCount.textContent = `Выбрано: ${selectedTeamIds.size}`;
+  if (teamDeleteSubmitBtn) {
+    teamDeleteSubmitBtn.disabled = selectedTeamIds.size === 0;
+  }
 };
 
 const renderProducts = () => {
@@ -633,17 +643,121 @@ const parseScore = (value) => {
   return Number.isFinite(parsed) ? parsed : Number.NaN;
 };
 
-const parseExcelRows = (rows) => {
+const START_ROW = 4;
+const END_ROW = 25;
+const TEAM_COL = "B";
+const TOTAL_COL = "W";
+
+const colLetterToIndex = (letter) => letter.toUpperCase().charCodeAt(0) - 65;
+
+const normalizeTeamName = (value) =>
+  String(value ?? "").replace(/\u00A0/g, " ").trim();
+
+const getCellValue = (sheet, address) => {
+  if (!sheet) return undefined;
+  const cell = sheet[address];
+  if (!cell) return undefined;
+  if (cell.f !== undefined && cell.v === undefined && cell.w !== undefined) {
+    return cell.w;
+  }
+  return cell.v ?? cell.w;
+};
+
+const getCellText = (sheet, address) => {
+  const value = getCellValue(sheet, address);
+  if (value === undefined || value === null) return "";
+  return String(value);
+};
+
+const getMergedValue = (sheet, address) => {
+  if (!sheet || !sheet["!merges"]) return getCellValue(sheet, address);
+  const { c, r } = XLSX.utils.decode_cell(address);
+  const merge = sheet["!merges"].find(
+    (m) => r >= m.s.r && r <= m.e.r && c >= m.s.c && c <= m.e.c
+  );
+  if (!merge) return getCellValue(sheet, address);
+  const masterAddr = XLSX.utils.encode_cell(merge.s);
+  return getCellValue(sheet, masterAddr);
+};
+
+const parseExcelRows = (rows, sheet, sheetName) => {
   if (!rows.length) {
     return { rows: [], rowErrors: [], errorCode: null };
   }
   let scoreColIndex = -1;
+  let hasDirectData = false;
+  const directRows = [];
+  const directErrors = [];
+  const teamColIndex = colLetterToIndex(TEAM_COL);
+  const totalColIndex = colLetterToIndex(TOTAL_COL);
+  for (let r = START_ROW; r <= END_ROW; r += 1) {
+    const teamAddress = `${TEAM_COL}${r}`;
+    const totalAddress = `${TOTAL_COL}${r}`;
+    const teamValue = getMergedValue(sheet, teamAddress);
+    const totalValue = getMergedValue(sheet, totalAddress);
+    if (String(teamValue || "").trim() || String(totalValue || "").trim()) {
+      hasDirectData = true;
+    }
+    const name = normalizeTeamName(teamValue);
+    const totalScore = parseScore(totalValue);
+    if (!name) {
+      console.warn(`Skipped row ${r}: empty team`);
+      directErrors.push({
+        row: r,
+        reason: "empty team",
+        rawValueType: typeof teamValue,
+        rawValue: teamValue,
+        merged: Boolean(sheet && sheet["!merges"]),
+        sheet: sheetName || "",
+      });
+      continue;
+    }
+    if (!Number.isFinite(totalScore)) {
+      console.warn(`Skipped row ${r}: invalid total`);
+      directErrors.push({
+        row: r,
+        value: totalValue,
+        rawValueType: typeof totalValue,
+        sheet: sheetName || "",
+      });
+      continue;
+    }
+    directRows.push({ name, score: totalScore });
+  }
+  if (hasDirectData) {
+    if (directErrors.length) {
+      return {
+        rows: directRows,
+        rowErrors: directErrors,
+        errorCode: "VALIDATION_FAILED",
+      };
+    }
+    if (directRows.length !== 22) {
+      return {
+        rows: directRows,
+        rowErrors: [],
+        errorCode: "EXPECTED_COUNT_MISMATCH",
+        expected: 22,
+        actual: directRows.length,
+      };
+    }
+    return { rows: directRows, rowErrors: [], errorCode: null };
+  }
+
+  let fallbackTeamColIndex = -1;
   rows.slice(0, 10).forEach((row, rowIndex) => {
     row.forEach((cell, colIndex) => {
       const value = String(cell || "").trim().toLowerCase();
       if (value === "итого") {
-        headerRowIndex = rowIndex;
         scoreColIndex = colIndex;
+      }
+      if (
+        fallbackTeamColIndex === -1 &&
+        (value.includes("команд") ||
+          value.includes("проект") ||
+          value.includes("назван"))
+      ) {
+        fallbackTeamColIndex = colIndex;
       }
     });
   });
@@ -667,9 +781,13 @@ const parseExcelRows = (rows) => {
 
   const result = [];
   const rowErrors = [];
+  if (fallbackTeamColIndex === -1) {
+    fallbackTeamColIndex = 0;
+  }
+
   rows.slice(2).forEach((row, idx) => {
     const rowNumber = idx + 3;
-    const nameCell = row[0] || row[1];
+    const nameCell = row[fallbackTeamColIndex] || row[1] || row[0];
     const name = String(nameCell || "").trim();
     const scoreRaw = row[scoreColIndex];
     const scoreValue = parseScore(scoreRaw);
@@ -701,16 +819,14 @@ const renderUploadPreview = (rows) => {
 };
 
 const loadAdminData = async () => {
-  const [settingsPayload, teamsPayload, productsPayload, ordersPayload, historyPayload] =
+  const [teamsPayload, productsPayload, ordersPayload, historyPayload] =
     await Promise.all([
-      adminFetch("/api/admin_settings"),
       adminFetch("/api/admin_teams"),
       adminFetch("/api/admin_products"),
       adminFetch("/api/admin_orders"),
       adminFetch("/api/admin_tikuns_adjust"),
     ]);
 
-  cachedSettings = settingsPayload.settings;
   cachedTeams = teamsPayload.teams || [];
   cachedProducts = productsPayload.products || [];
   cachedOrders = ordersPayload.orders || [];
@@ -718,8 +834,7 @@ const loadAdminData = async () => {
   cache.teams = cachedTeams;
   cache.products = cachedProducts;
 
-  settingsWeek.value = cachedSettings.current_week;
-  uploadWeek.value = cachedSettings.current_week;
+  if (!uploadWeek.value) uploadWeek.value = 1;
   await renderAll();
 };
 

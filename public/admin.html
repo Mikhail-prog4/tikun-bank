@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Тикун.Банк — Админ</title>
     <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
   </head>
   <body data-page="admin">
     <header class="site-header">
@@ -33,31 +34,6 @@
       </section>
 
       <div id="admin-content" class="hidden">
-        <section class="card">
-          <div class="card-header">
-            <h2>Настройки</h2>
-          </div>
-          <form id="settings-form" class="form form-row">
-            <label>
-              Текущая неделя
-              <input id="settings-week" type="number" min="1" max="12" />
-            </label>
-            <label>
-              Новый пароль админа
-              <input id="settings-password" type="text" placeholder="Оставьте пустым, чтобы не менять" />
-            </label>
-            <button class="primary-btn" type="submit">Сохранить</button>
-          </form>
-          <div class="form">
-            <div class="muted">
-              Удалит заявки, оценки и историю, затем создаст 22 команды и товары заново.
-            </div>
-            <button id="reset-init-btn" class="danger-btn" type="button">
-              Сброс/инициализация базы
-            </button>
-          </div>
-        </section>
-
         <section class="card">
           <div class="card-header">
             <h2>Загрузка оценок (Excel)</h2>
@@ -121,27 +97,45 @@
         </section>
 
         <section class="card">
-          <div class="card-header">
-            <h2>Команды</h2>
+          <div class="admin-actions">
+            <button id="toggle-delete-team" class="danger-btn" type="button">
+              Удалить команды
+            </button>
+            <button id="toggle-products" class="secondary-btn" type="button">
+              Товары магазина
+            </button>
+            <button id="toggle-orders" class="secondary-btn" type="button">
+              Заявки
+            </button>
           </div>
-          <form id="team-add-form" class="form form-row">
-            <label>
-              Новая команда
-              <input id="team-name" type="text" required />
-            </label>
-            <button class="primary-btn" type="submit">Добавить</button>
-          </form>
-          <form id="team-delete-form" class="form form-row">
-            <label>
-              Удалить команду
-              <select id="team-delete-select" required></select>
-            </label>
-            <button class="danger-btn" type="submit">Удалить</button>
-          </form>
-          <div id="teams-list" class="list"></div>
+
+          <div id="team-delete-panel" class="panel hidden">
+            <div class="form">
+              <label>
+                Поиск команды
+                <input id="team-delete-search" type="text" placeholder="Начните вводить название" />
+              </label>
+            </div>
+            <div class="team-delete-tools">
+              <div class="actions">
+                <button id="team-select-all" class="secondary-btn" type="button">
+                  Выбрать все
+                </button>
+                <button id="team-clear-all" class="secondary-btn" type="button">
+                  Снять все
+                </button>
+              </div>
+              <div id="team-delete-count" class="muted">Выбрано: 0</div>
+              <button id="team-delete-submit" class="danger-btn" type="button">
+                Удалить выбранные
+              </button>
+            </div>
+            <div id="team-delete-list" class="team-checklist"></div>
+            <div id="team-delete-result" class="muted"></div>
+          </div>
         </section>
 
-        <section class="card">
+        <section id="products-panel" class="card hidden">
           <div class="card-header">
             <h2>Товары магазина</h2>
           </div>
@@ -172,7 +166,7 @@
           <div id="products-list" class="list"></div>
         </section>
 
-        <section class="card">
+        <section id="orders-panel" class="card hidden">
           <div class="card-header">
             <h2>Заявки</h2>
           </div>

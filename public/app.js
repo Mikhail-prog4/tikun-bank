@@ -45,17 +45,17 @@ const renderRating = async () => {
 
     weekInfo.textContent = `Неделя ${settings.current_week} из 12`;
 
-    const riskThreshold = ranking.length - 3;
+    const riskThreshold = ranking.length >= 3 ? ranking.length - 3 : Infinity;
     tbody.innerHTML = "";
     ranking.forEach(({ team, rank }, index) => {
       const row = document.createElement("tr");
       if (rank === 1) row.classList.add("rank-top-1");
       if (rank === 2) row.classList.add("rank-top-2");
       if (rank === 3) row.classList.add("rank-top-3");
-      if (index >= riskThreshold) row.classList.add("rank-risk");
+      if (index >= riskThreshold) row.classList.add("risk-zone");
 
-    const trend = getTrend(team.previous_rank, rank);
-    const medal = getMedal(rank);
+      const trend = getTrend(team.previous_rank, rank);
+      const medal = getMedal(rank);
       row.innerHTML = `
         <td>${medal ? `${medal} ` : ""}${rank}</td>
         <td>${team.name}</td>
