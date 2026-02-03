@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Тикун.Банк — Админ</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="admin">
+    <header class="site-header">
+      <div class="logo-group">
+        <img class="logo-img" src="/assets/logo.png" alt="Тикун Лаб" />
+      </div>
+      <nav class="site-nav">
+        <a class="nav-link" href="index.html">Рейтинг</a>
+        <a class="nav-link" href="shop.html">Магазин</a>
+        <a class="nav-link" href="rules.html">Правила</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section id="login-card" class="card">
+        <h1>Админ-панель</h1>
+        <p class="muted">Введите пароль для доступа.</p>
+        <form id="login-form" class="form">
+          <label>
+            Пароль
+            <input id="login-password" type="password" required />
+          </label>
+          <button class="primary-btn" type="submit">Войти</button>
+        </form>
+        <div id="login-error" class="error-text hidden">Неверный пароль</div>
+      </section>
+
+      <div id="admin-content" class="hidden">
+        <section class="card">
+          <div class="card-header">
+            <h2>Настройки</h2>
+          </div>
+          <form id="settings-form" class="form form-row">
+            <label>
+              Текущая неделя
+              <input id="settings-week" type="number" min="1" max="12" />
+            </label>
+            <label>
+              Новый пароль админа
+              <input id="settings-password" type="text" placeholder="Оставьте пустым, чтобы не менять" />
+            </label>
+            <button class="primary-btn" type="submit">Сохранить</button>
+          </form>
+          <div class="form">
+            <div class="muted">
+              Удалит заявки, оценки и историю, затем создаст 22 команды и товары заново.
+            </div>
+            <button id="reset-init-btn" class="danger-btn" type="button">
+              Сброс/инициализация базы
+            </button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Загрузка оценок (Excel)</h2>
+          </div>
+          <form id="upload-form" class="form">
+            <label>
+              Неделя
+              <input id="upload-week" type="number" min="1" max="12" required />
+            </label>
+            <label>
+              Файл Excel (.xlsx)
+              <input id="upload-file" type="file" accept=".xlsx,.xls" required />
+            </label>
+            <button class="primary-btn" type="submit">Предпросмотр</button>
+          </form>
+          <div class="form">
+            <button id="download-template" class="secondary-btn" type="button">
+              Скачать Excel-шаблон
+            </button>
+            <div class="muted">
+              Заполняйте с 3 строки. Команда в A или B. Последний столбец = ИТОГО.
+            </div>
+          </div>
+          <div id="upload-preview" class="preview hidden">
+            <h3>Предпросмотр</h3>
+            <div class="table-wrapper">
+              <table class="rating-table">
+                <thead>
+                  <tr>
+                    <th>Команда</th>
+                    <th>Баллы</th>
+                  </tr>
+                </thead>
+                <tbody id="preview-body"></tbody>
+              </table>
+            </div>
+            <button id="apply-upload" class="primary-btn">Сохранить загрузку</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Ручное управление тикунами</h2>
+          </div>
+          <form id="tikun-form" class="form form-row">
+            <label>
+              Команда
+              <select id="tikun-team" required></select>
+            </label>
+            <label>
+              Сумма (+/-)
+              <input id="tikun-amount" type="number" step="1" required />
+            </label>
+            <label>
+              Причина
+              <input id="tikun-reason" type="text" required />
+            </label>
+            <button class="primary-btn" type="submit">Применить</button>
+          </form>
+          <div id="tikun-history" class="history-list"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Команды</h2>
+          </div>
+          <form id="team-add-form" class="form form-row">
+            <label>
+              Новая команда
+              <input id="team-name" type="text" required />
+            </label>
+            <button class="primary-btn" type="submit">Добавить</button>
+          </form>
+          <form id="team-delete-form" class="form form-row">
+            <label>
+              Удалить команду
+              <select id="team-delete-select" required></select>
+            </label>
+            <button class="danger-btn" type="submit">Удалить</button>
+          </form>
+          <div id="teams-list" class="list"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Товары магазина</h2>
+          </div>
+          <form id="product-add-form" class="form form-row">
+            <label>
+              Название
+              <input id="product-name" type="text" required />
+            </label>
+            <label>
+              Цена, ₮
+              <input id="product-price" type="number" min="0" step="1" required />
+            </label>
+            <label>
+              Категория
+              <select id="product-category" required>
+                <option value="people">Люди</option>
+                <option value="expertise">Экспертиза</option>
+                <option value="ads">Реклама</option>
+                <option value="other">Разное</option>
+              </select>
+            </label>
+            <label>
+              Описание
+              <input id="product-description" type="text" required />
+            </label>
+            <button class="primary-btn" type="submit">Добавить</button>
+          </form>
+          <div id="products-list" class="list"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <h2>Заявки</h2>
+          </div>
+          <div class="form form-row">
+            <label>
+              Фильтр по статусу
+              <select id="orders-filter">
+                <option value="all">Все</option>
+                <option value="new">Новая</option>
+                <option value="approved">Одобрена</option>
+                <option value="rejected">Отклонена</option>
+                <option value="completed">Выполнена</option>
+              </select>
+            </label>
+          </div>
+          <div id="orders-list" class="list"></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <a class="admin-link" href="index.html">Вернуться на сайт</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabaseClient.js"></script>
+    <script src="data.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>

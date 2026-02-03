@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2048 637" role="img" aria-label=""8:C= 01">
+  <defs>
+    <radialGradient id="badgeGlow" cx="35%" cy="35%" r="75%">
+      <stop offset="0%" stop-color="#F4F4F4"/>
+      <stop offset="100%" stop-color="#B8B8B8"/>
+    </radialGradient>
+  </defs>
+  <rect x="0" y="49" width="1024" height="539" rx="270" fill="#0A47D1"/>
+  <circle cx="714" cy="318" r="228" fill="url(#badgeGlow)"/>
+  <text x="1136" y="270" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="210" font-weight="700" fill="#1B1F2A">B8:C=</text>
+  <text x="1136" y="490" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="210" font-weight="700" fill="#1B1F2A">;01</text>
+</svg>

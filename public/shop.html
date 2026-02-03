@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Тикун.Банк — Магазин</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="shop">
+    <header class="site-header">
+      <div class="logo-group">
+        <img class="logo-img" src="/assets/logo.png" alt="Тикун Лаб" />
+      </div>
+      <nav class="site-nav">
+        <a class="nav-link" href="index.html">Рейтинг</a>
+        <a class="nav-link active" href="shop.html">Магазин</a>
+        <a class="nav-link" href="rules.html">Правила</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="card-header">
+          <h1>Магазин</h1>
+          <p class="muted">
+            Тикуны можно потратить на консультации, рекламу и другие бонусы.
+          </p>
+        </div>
+        <div id="shop-list" class="shop-grid"></div>
+      </section>
+    </main>
+
+    <div id="order-modal" class="modal hidden">
+      <div class="modal-content">
+        <button class="modal-close" type="button" id="order-modal-close">×</button>
+        <h2>Подать заявку</h2>
+        <form id="order-form" class="form">
+          <label>
+            Команда
+            <select id="order-team" required></select>
+          </label>
+          <label>
+            Товар
+            <select id="order-product" required></select>
+          </label>
+          <label>
+            Telegram для связи
+            <input id="order-telegram" type="text" placeholder="@username" required />
+          </label>
+          <label>
+            Комментарий (опционально)
+            <textarea id="order-comment" rows="3"></textarea>
+          </label>
+          <button class="primary-btn" id="order-submit" type="submit">
+            Отправить заявку
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <a class="admin-link" href="admin.html">Админ-панель</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabaseClient.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

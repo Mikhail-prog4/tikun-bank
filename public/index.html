@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Тикун.Банк — Рейтинг</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body data-page="rating">
+    <header class="site-header">
+      <div class="logo-group">
+        <img class="logo-img" src="/assets/logo.png" alt="Тикун Лаб" />
+      </div>
+      <nav class="site-nav">
+        <a class="nav-link active" href="index.html">Рейтинг</a>
+        <a class="nav-link" href="shop.html">Магазин</a>
+        <a class="nav-link" href="rules.html">Правила</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="card">
+        <div class="card-header">
+          <h1>Рейтинг команд</h1>
+          <div id="week-info" class="week-info">Неделя 1 из 12</div>
+        </div>
+        <div class="table-wrapper">
+          <table class="rating-table">
+            <thead>
+              <tr>
+                <th>Место</th>
+                <th>Команда</th>
+                <th>Текущая неделя</th>
+                <th>Кумулятивный балл</th>
+                <th>Баланс, ₮</th>
+                <th>Динамика</th>
+              </tr>
+            </thead>
+            <tbody id="rating-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="admin-link" href="admin.html">Админ-панель</a>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabaseClient.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
