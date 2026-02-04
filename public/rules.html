@@ -19,7 +19,7 @@
           alt="Тикун"
           loading="lazy"
           decoding="async"
-          onerror="this.onerror=null; this.src='/assets/logo.png';"
+          data-fallback="/assets/logo.png"
         />
       </div>
       <nav class="site-nav">
@@ -72,5 +72,6 @@
     </main>
 
     <footer class="site-footer"></footer>
+    <script defer src="base.js"></script>
   </body>
 </html>

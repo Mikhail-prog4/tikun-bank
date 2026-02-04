@@ -19,7 +19,7 @@
           alt="Тикун"
           loading="lazy"
           decoding="async"
-          onerror="this.onerror=null; this.src='/assets/logo.png';"
+          data-fallback="/assets/logo.png"
         />
       </div>
       <nav class="site-nav">
@@ -198,11 +198,8 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script
-      defer
-      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-      onerror="window.__CDN_FAILED__=true;"
-    ></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="base.js"></script>
     <script src="supabaseClient.js"></script>
     <script src="data.js"></script>
     <script src="admin.js"></script>
