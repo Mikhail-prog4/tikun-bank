@@ -12,18 +12,40 @@ const showConfigError = (message) => {
   document.body.prepend(box);
 };
 
+const isValidConfig = (payload) => {
+  const supabaseUrl = payload && payload.SUPABASE_URL;
+  const supabaseAnonKey = payload && payload.SUPABASE_ANON_KEY;
+  if (
+    typeof supabaseUrl !== "string" ||
+    !supabaseUrl.startsWith("https://") ||
+    !supabaseUrl.includes(".supabase.co")
+  ) {
+    return null;
+  }
+  if (typeof supabaseAnonKey !== "string" || supabaseAnonKey.length <= 20) {
+    return null;
+  }
+  return { supabaseUrl, supabaseAnonKey };
+};
+
 const fetchConfigWithTimeout = async (url, timeoutMs) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[supabase] ${url} status: ${response.status}`);
+      return null;
+    }
     const payload = await response.json();
-    const supabaseUrl = payload.SUPABASE_URL;
-    const supabaseAnonKey = payload.SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) return null;
-    return { supabaseUrl, supabaseAnonKey };
+    const valid = isValidConfig(payload);
+    if (!valid) {
+      console.warn(`[supabase] ${url} invalid config`);
+      return null;
+    }
+    return valid;
   } catch (error) {
+    console.warn(`[supabase] ${url} failed: ${error && error.name ? error.name : "error"}`);
     return null;
   } finally {
     clearTimeout(timeoutId);
@@ -32,7 +54,7 @@ const fetchConfigWithTimeout = async (url, timeoutMs) => {
 
 const getSupabaseClient = async () => {
   if (window.__supabaseClient) return window.__supabaseClient;
-  const fromStatic = await fetchConfigWithTimeout("/env.json", 5000);
+  const fromStatic = await fetchConfigWithTimeout("/env.json", 3000);
   const fromApi = fromStatic
     ? null
     : await fetchConfigWithTimeout("/api/env", 7000);
@@ -43,6 +65,9 @@ const getSupabaseClient = async () => {
     );
     throw new Error("Не удалось загрузить конфигурацию");
   }
+  console.info(
+    `Supabase config loaded from: ${fromStatic ? "/env.json" : "/api/env"}`
+  );
   window.__supabaseClient = supabase.createClient(
     config.supabaseUrl,
     config.supabaseAnonKey
