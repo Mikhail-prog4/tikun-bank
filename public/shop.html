@@ -13,7 +13,14 @@
   <body data-page="shop">
     <header class="site-header">
       <div class="logo-group">
-        <img class="logo-img" src="/assets/logo.png" alt="Тикун Лаб" />
+        <img
+          class="logo-img"
+          src="/assets/tikun-lab-logo.svg"
+          alt="Тикун"
+          loading="lazy"
+          decoding="async"
+          onerror="this.onerror=null; this.src='/assets/logo.png';"
+        />
       </div>
       <nav class="site-nav">
         <a class="nav-link" href="index.html">Рейтинг</a>
@@ -64,7 +71,17 @@
 
     <footer class="site-footer"></footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+      onerror="window.__CDN_FAILED__=true;"
+    ></script>
+    <script defer>
+      if (window.__CDN_FAILED__) {
+        document.body.innerHTML =
+          '<div style="padding:16px;font-family:sans-serif">Не загрузились зависимости (CDN). Откройте с другой сети/VPN или перенесите библиотеку локально.</div>';
+      }
+    </script>
     <script src="supabaseClient.js"></script>
     <script src="data.js"></script>
     <script src="app.js"></script>

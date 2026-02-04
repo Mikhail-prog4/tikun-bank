@@ -3,6 +3,16 @@ const { PRODUCT_CATEGORIES, formatMoney, formatDate, fetchTeams } =
 
 const cache = window.__CACHE__ || (window.__CACHE__ = {});
 
+const escapeHtml = (value) => {
+  const s = String(value ?? "");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
 const flashButton = (button, ok = true) => {
   if (!button) return;
   const className = ok ? "btn--success-flash" : "btn--error-flash";
@@ -437,11 +447,11 @@ const renderTikuns = async () => {
     row.className = "history-item";
     row.innerHTML = `
       <div>
-        <strong>${team ? team.name : "Команда"}</strong>
-        <div class="muted">${entry.reason}</div>
+        <strong>${escapeHtml(team ? team.name : "Команда")}</strong>
+        <div class="muted">${escapeHtml(entry.reason)}</div>
       </div>
-      <div>${entry.amount > 0 ? "+" : ""}${entry.amount} ₮</div>
-      <div class="muted">${formatDate(entry.created_at)}</div>
+      <div>${escapeHtml(`${entry.amount > 0 ? "+" : ""}${entry.amount}`)} ₮</div>
+      <div class="muted">${escapeHtml(formatDate(entry.created_at))}</div>
     `;
     tikunHistory.appendChild(row);
   });
@@ -505,8 +515,10 @@ const renderProducts = () => {
     item.className = "list-item";
     item.innerHTML = `
       <div>
-        <input type="text" value="${product.name}" class="product-name-input" />
-        <div class="meta">${PRODUCT_CATEGORIES[product.category]} · ${product.price} ₮</div>
+        <input type="text" value="${escapeHtml(product.name)}" class="product-name-input" />
+        <div class="meta">${escapeHtml(
+          PRODUCT_CATEGORIES[product.category]
+        )} · ${escapeHtml(product.price)} ₮</div>
         <div class="meta">${product.is_active ? "Активен" : "Неактивен"}</div>
       </div>
       <div class="actions">
@@ -587,11 +599,11 @@ function renderOrders() {
     item.className = "list-item";
     item.innerHTML = `
       <div>
-        <strong>${team ? team.name : "Команда"}</strong>
-        <div class="meta">${product ? product.name : "Товар"}</div>
-        <div class="meta">Контакт: ${order.telegram_contact}</div>
-        <div class="meta">Дата: ${formatDate(order.created_at)}</div>
-        <div class="meta">Статус: ${order.status}</div>
+        <strong>${escapeHtml(team ? team.name : "Команда")}</strong>
+        <div class="meta">${escapeHtml(product ? product.name : "Товар")}</div>
+        <div class="meta">Контакт: ${escapeHtml(order.telegram_contact)}</div>
+        <div class="meta">Дата: ${escapeHtml(formatDate(order.created_at))}</div>
+        <div class="meta">Статус: ${escapeHtml(order.status)}</div>
       </div>
       <div class="actions">
         <button class="secondary-btn" data-action="approve">Одобрить</button>
@@ -804,7 +816,9 @@ const renderUploadPreview = (rows) => {
   previewBody.innerHTML = "";
   rows.forEach((row) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${row.name}</td><td>${row.score}</td>`;
+    tr.innerHTML = `<td>${escapeHtml(row.name)}</td><td>${escapeHtml(
+      row.score
+    )}</td>`;
     previewBody.appendChild(tr);
   });
   uploadPreview.classList.remove("hidden");

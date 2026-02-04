@@ -10,6 +10,16 @@ const {
 
 const cache = window.__CACHE__ || (window.__CACHE__ = {});
 
+const escapeHtml = (value) => {
+  const s = String(value ?? "");
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
 const flashButton = (button, ok = true) => {
   if (!button) return;
   const className = ok ? "btn--success-flash" : "btn--error-flash";
@@ -63,10 +73,10 @@ const renderRating = async () => {
       const medal = getMedal(rank);
       row.innerHTML = `
         <td>${medal ? `${medal} ` : ""}${rank}</td>
-        <td>${team.name}</td>
-        <td>${Number(team.current_week_score || 0).toFixed(2)}</td>
-        <td>${Number(team.cumulative_score || 0).toFixed(2)}</td>
-        <td>${formatMoney(team.tikuns_balance)} ₮</td>
+        <td>${escapeHtml(team.name)}</td>
+        <td>${escapeHtml(Number(team.current_week_score || 0).toFixed(2))}</td>
+        <td>${escapeHtml(Number(team.cumulative_score || 0).toFixed(2))}</td>
+        <td>${escapeHtml(formatMoney(team.tikuns_balance))} ₮</td>
         <td>${trend}</td>
       `;
       tbody.appendChild(row);
@@ -108,10 +118,12 @@ const renderShop = async () => {
       const card = document.createElement("div");
       card.className = "shop-card";
       card.innerHTML = `
-        <span class="pill">${PRODUCT_CATEGORIES[product.category] || "Другое"}</span>
-        <h3>${product.name}</h3>
-        <div class="muted">${product.description}</div>
-        <strong>${formatMoney(product.price)} ₮</strong>
+        <span class="pill">${escapeHtml(
+          PRODUCT_CATEGORIES[product.category] || "Другое"
+        )}</span>
+        <h3>${escapeHtml(product.name)}</h3>
+        <div class="muted">${escapeHtml(product.description)}</div>
+        <strong>${escapeHtml(formatMoney(product.price))} ₮</strong>
         <button class="primary-btn">Подать заявку</button>
       `;
       const button = card.querySelector("button");

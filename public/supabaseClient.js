@@ -14,7 +14,17 @@ const showConfigError = (message) => {
 
 const getSupabaseClient = async () => {
   if (window.__supabaseClient) return window.__supabaseClient;
-  const response = await fetch("/api/env");
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 7000);
+  let response;
+  try {
+    response = await fetch("/api/env", { signal: controller.signal });
+  } catch (error) {
+    showConfigError("Не удалось подключиться: /api/env недоступен.");
+    throw new Error("Не удалось загрузить конфигурацию");
+  } finally {
+    clearTimeout(timeoutId);
+  }
   if (!response.ok) {
     showConfigError("Не настроен Supabase / не заполнен .env");
     throw new Error("Не удалось загрузить конфигурацию");
