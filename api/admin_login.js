@@ -1,5 +1,4 @@
-const { getSupabase, parseBody, json, getSettings, signToken } =
-  require("./_utils");
+const { parseBody, json, signToken } = require("./_utils");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -8,9 +7,11 @@ module.exports = async (req, res) => {
   try {
     const body = await parseBody(req);
     const password = body.password || "";
-    const supabase = getSupabase();
-    const settings = await getSettings(supabase);
-    if (password !== settings.admin_password) {
+    const expected = process.env.ADMIN_PASSWORD || "";
+    if (!expected) {
+      return json(res, 500, { error: "Не задан ADMIN_PASSWORD" });
+    }
+    if (password !== expected) {
       return json(res, 401, { error: "Неверный пароль" });
     }
     const token = signToken({ role: "admin" });

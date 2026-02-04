@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Тикун.Банк — Админ</title>
     <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <!-- TODO: добавить favicon-32x32.png, favicon-16x16.png, favicon.ico -->
   </head>
   <body data-page="admin">
     <header class="site-header">
@@ -47,15 +50,12 @@
               Файл Excel (.xlsx)
               <input id="upload-file" type="file" accept=".xlsx,.xls" required />
             </label>
-            <button class="primary-btn" type="submit">Предпросмотр</button>
+            <button class="primary-btn" type="submit">Обновить рейтинг</button>
           </form>
           <div class="form">
             <button id="download-template" class="secondary-btn" type="button">
-              Скачать Excel-шаблон
+              Отменить последнее действие
             </button>
-            <div class="muted">
-              Заполняйте с 3 строки. Команда в A или B. Последний столбец = ИТОГО.
-            </div>
           </div>
           <div id="upload-preview" class="preview hidden">
             <h3>Предпросмотр</h3>
@@ -70,7 +70,6 @@
                 <tbody id="preview-body"></tbody>
               </table>
             </div>
-            <button id="apply-upload" class="primary-btn">Сохранить загрузку</button>
           </div>
         </section>
 

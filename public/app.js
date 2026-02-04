@@ -33,6 +33,7 @@ const getCachedProducts = async () => {
 
 const renderRating = async () => {
   const weekInfo = document.getElementById("week-info");
+  const sprintHeader = document.getElementById("current-sprint-header");
   const tbody = document.getElementById("rating-body");
   if (!tbody || !weekInfo) return;
   tbody.innerHTML = `<tr><td colspan="6">Загрузка...</td></tr>`;
@@ -43,7 +44,11 @@ const renderRating = async () => {
     ]);
     const ranking = getRanking(teams);
 
-    weekInfo.textContent = `Неделя ${settings.current_week} из 12`;
+    const sprintNumber = Number(settings.current_week) || 1;
+    weekInfo.textContent = `Спринт ${sprintNumber} из 12`;
+    if (sprintHeader) {
+      sprintHeader.textContent = `Спринт ${sprintNumber}`;
+    }
 
     const riskThreshold = ranking.length >= 3 ? ranking.length - 3 : Infinity;
     tbody.innerHTML = "";

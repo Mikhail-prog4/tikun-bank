@@ -4,8 +4,8 @@ update settings
 set current_week = 1
 where id = 1;
 
-insert into settings (id, current_week, admin_password)
-values (1, 1, 'admin123')
+insert into settings (id, current_week)
+values (1, 1)
 on conflict (id) do update set current_week = 1;
 
 delete from orders;

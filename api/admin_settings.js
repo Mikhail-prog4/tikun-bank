@@ -31,9 +31,6 @@ module.exports = async (req, res) => {
       if (typeof body.current_week === "number") {
         updates.current_week = Math.min(Math.max(body.current_week, 1), 12);
       }
-      if (body.password) {
-        updates.admin_password = String(body.password);
-      }
       const { error } = await supabase
         .from("settings")
         .update(updates)

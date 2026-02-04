@@ -42,8 +42,7 @@ create table if not exists orders (
 
 create table if not exists settings (
   id integer primary key default 1,
-  current_week integer not null default 1,
-  admin_password text not null
+  current_week integer not null default 1
 );
 
 create table if not exists balance_history (
@@ -51,6 +50,14 @@ create table if not exists balance_history (
   team_id uuid not null references teams(id) on delete restrict,
   amount integer not null,
   reason text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists rating_history (
+  id uuid primary key default gen_random_uuid(),
+  action text not null,
+  payload jsonb not null,
+  undone boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -77,7 +84,8 @@ create index if not exists teams_cumulative_idx on teams(cumulative_score desc);
 create index if not exists orders_status_idx on orders(status);
 create index if not exists orders_created_idx on orders(created_at desc);
 create index if not exists balance_history_team_idx on balance_history(team_id);
+create index if not exists rating_history_created_idx on rating_history(created_at desc);
 
-insert into settings (id, current_week, admin_password)
-values (1, 1, 'admin123')
+insert into settings (id, current_week)
+values (1, 1)
 on conflict (id) do nothing;

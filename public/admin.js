@@ -40,7 +40,9 @@ const uploadFile = document.getElementById("upload-file");
 const uploadWeek = document.getElementById("upload-week");
 const uploadPreview = document.getElementById("upload-preview");
 const previewBody = document.getElementById("preview-body");
-const applyUploadBtn = document.getElementById("apply-upload");
+const uploadSubmitBtn = uploadForm
+  ? uploadForm.querySelector('button[type="submit"]')
+  : null;
 const downloadTemplateBtn = document.getElementById("download-template");
 
 const tikunForm = document.getElementById("tikun-form");
@@ -162,6 +164,20 @@ if (toggleOrdersBtn) {
   });
 }
 
+const performUpload = async (rows) => {
+  const weekNumber = Number(uploadWeek.value) || 1;
+  await withButtonLoading(uploadSubmitBtn, "Сохранение...", async () => {
+    await adminFetch("/api/admin_upload_week", {
+      method: "POST",
+      body: JSON.stringify({ week_number: weekNumber, rows }),
+    });
+    pendingUploadRows = [];
+    uploadPreview.classList.add("hidden");
+    uploadForm.reset();
+    await loadAdminData();
+  });
+};
+
 uploadForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!uploadFile.files[0]) return;
@@ -209,46 +225,22 @@ uploadForm.addEventListener("submit", async (event) => {
   }
   pendingUploadRows = parsed.rows;
   renderUploadPreview(pendingUploadRows);
-});
-
-applyUploadBtn.addEventListener("click", async () => {
-  const weekNumber = Number(uploadWeek.value) || 1;
-  if (!pendingUploadRows.length) return;
   try {
-    await withButtonLoading(applyUploadBtn, "Сохранение...", async () => {
-      await adminFetch("/api/admin_upload_week", {
-        method: "POST",
-        body: JSON.stringify({ week_number: weekNumber, rows: pendingUploadRows }),
-      });
-      pendingUploadRows = [];
-      uploadPreview.classList.add("hidden");
-      uploadForm.reset();
-      await loadAdminData();
-    });
+    await performUpload(pendingUploadRows);
   } catch (error) {
-    alert("Не удалось загрузить оценки.");
+    alert("Не удалось обновить рейтинг.");
   }
 });
 
 downloadTemplateBtn.addEventListener("click", async () => {
   try {
-    await withButtonLoading(downloadTemplateBtn, "Скачивание...", async () => {
-      const response = await fetch("/api/excel_template");
-      if (!response.ok) {
-        throw new Error("Шаблон не сформирован");
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "tikunlab_template.xlsx";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+    await withButtonLoading(downloadTemplateBtn, "Отмена...", async () => {
+      await adminFetch("/api/undo_last_action", { method: "POST" });
+      await loadAdminData();
     });
+    alert("Последнее действие отменено.");
   } catch (error) {
-    alert("Шаблон не сформирован. Проверь логи / зависимость exceljs.");
+    alert("Не удалось отменить последнее действие.");
   }
 });
 

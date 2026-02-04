@@ -42,6 +42,39 @@ module.exports = async (req, res) => {
       .select("*");
     if (teamsError) throw teamsError;
 
+    const { data: settings, error: settingsError } = await supabase
+      .from("settings")
+      .select("current_week")
+      .eq("id", 1)
+      .single();
+    if (settingsError) throw settingsError;
+
+    const { data: snapshotTeams, error: snapshotTeamsError } = await supabase
+      .from("teams")
+      .select(
+        "id,current_week_score,cumulative_score,tikuns_balance,previous_rank,is_active"
+      );
+    if (snapshotTeamsError) throw snapshotTeamsError;
+
+    const { data: snapshotScores, error: snapshotScoresError } = await supabase
+      .from("weekly_scores")
+      .select("team_id,week_number,score")
+      .eq("week_number", weekNumber);
+    if (snapshotScoresError) throw snapshotScoresError;
+
+    const { error: historySnapshotError } = await supabase
+      .from("rating_history")
+      .insert({
+      action: "upload_week",
+      payload: {
+        week_number: weekNumber,
+        settings: { current_week: settings.current_week },
+        teams: snapshotTeams,
+        weekly_scores: snapshotScores,
+      },
+    });
+    if (historySnapshotError) throw historySnapshotError;
+
     // Сохраняем позиции ДО любых изменений недели
     const ranking = getRanking(teams);
     await Promise.all(

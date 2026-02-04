@@ -139,6 +139,7 @@ module.exports = async (req, res) => {
     await deleteAll(supabase, "orders");
     await deleteAll(supabase, "weekly_scores");
     await deleteAll(supabase, "balance_history");
+    await deleteAll(supabase, "rating_history");
     await deleteAll(supabase, "products");
     await deleteAll(supabase, "teams");
 
