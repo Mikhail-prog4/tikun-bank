@@ -16,8 +16,7 @@ const showCdnError = () => {
 const attachLogoFallbacks = () => {
   const logos = Array.from(document.querySelectorAll(".logo-img"));
   logos.forEach((logo) => {
-    const fallback = logo.getAttribute("data-fallback");
-    if (!fallback) return;
+    const fallback = "/assets/tikun-lab-logo.svg";
     logo.addEventListener("error", () => {
       if (logo.src.endsWith(fallback)) return;
       logo.src = fallback;
