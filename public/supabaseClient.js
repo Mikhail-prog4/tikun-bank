@@ -12,31 +12,41 @@ const showConfigError = (message) => {
   document.body.prepend(box);
 };
 
-const getSupabaseClient = async () => {
-  if (window.__supabaseClient) return window.__supabaseClient;
+const fetchConfigWithTimeout = async (url, timeoutMs) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 7000);
-  let response;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    response = await fetch("/api/env", { signal: controller.signal });
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const supabaseUrl = payload.SUPABASE_URL;
+    const supabaseAnonKey = payload.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) return null;
+    return { supabaseUrl, supabaseAnonKey };
   } catch (error) {
-    showConfigError("Не удалось подключиться: /api/env недоступен.");
-    throw new Error("Не удалось загрузить конфигурацию");
+    return null;
   } finally {
     clearTimeout(timeoutId);
   }
-  if (!response.ok) {
-    showConfigError("Не настроен Supabase / не заполнен .env");
+};
+
+const getSupabaseClient = async () => {
+  if (window.__supabaseClient) return window.__supabaseClient;
+  const fromStatic = await fetchConfigWithTimeout("/env.json", 5000);
+  const fromApi = fromStatic
+    ? null
+    : await fetchConfigWithTimeout("/api/env", 7000);
+  const config = fromStatic || fromApi;
+  if (!config) {
+    showConfigError(
+      "Не могу получить конфиг Supabase ни из /env.json, ни из /api/env"
+    );
     throw new Error("Не удалось загрузить конфигурацию");
   }
-  const payload = await response.json();
-  const supabaseUrl = payload.SUPABASE_URL;
-  const supabaseAnonKey = payload.SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) {
-    showConfigError("Не настроен Supabase / не заполнен .env");
-    throw new Error("Некорректная конфигурация Supabase");
-  }
-  window.__supabaseClient = supabase.createClient(supabaseUrl, supabaseAnonKey);
+  window.__supabaseClient = supabase.createClient(
+    config.supabaseUrl,
+    config.supabaseAnonKey
+  );
   return window.__supabaseClient;
 };
 
