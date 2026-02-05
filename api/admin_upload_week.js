@@ -65,15 +65,29 @@ module.exports = async (req, res) => {
     const { error: historySnapshotError } = await supabase
       .from("rating_history")
       .insert({
-      action: "upload_week",
-      payload: {
-        week_number: weekNumber,
-        settings: { current_week: settings.current_week },
-        teams: snapshotTeams,
-        weekly_scores: snapshotScores,
-      },
-    });
-    if (historySnapshotError) throw historySnapshotError;
+        action: "upload_week",
+        payload: {
+          week_number: weekNumber,
+          settings: { current_week: settings.current_week },
+          teams: snapshotTeams,
+          weekly_scores: snapshotScores,
+        },
+      });
+    if (historySnapshotError) {
+      const message = String(historySnapshotError.message || "");
+      if (
+        historySnapshotError.code === "42P01" ||
+        message.includes("schema cache") ||
+        message.includes("rating_history")
+      ) {
+        console.warn(
+          "rating_history недоступна, пропускаем snapshot",
+          historySnapshotError
+        );
+      } else {
+        throw historySnapshotError;
+      }
+    }
 
     // Сохраняем позиции ДО любых изменений недели
     const ranking = getRanking(teams);
@@ -182,6 +196,8 @@ module.exports = async (req, res) => {
 
     return json(res, 200, { ok: true });
   } catch (error) {
-    return json(res, 500, { error: "Не удалось загрузить неделю" });
+    const details =
+      error && error.message ? error.message : "Не удалось загрузить неделю";
+    return json(res, 500, { error: details });
   }
 };

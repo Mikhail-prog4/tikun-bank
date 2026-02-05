@@ -238,7 +238,7 @@ uploadForm.addEventListener("submit", async (event) => {
   try {
     await performUpload(pendingUploadRows);
   } catch (error) {
-    alert("Не удалось обновить рейтинг.");
+    alert(`Не удалось обновить рейтинг. ${error.message || ""}`.trim());
   }
 });
 
