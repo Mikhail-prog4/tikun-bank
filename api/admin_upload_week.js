@@ -81,6 +81,7 @@ module.exports = async (req, res) => {
       .single();
     if (settingsError) return respondError("load_settings", settingsError);
 
+    // Снимок ДО изменений
     const { data: snapshotTeams, error: snapshotTeamsError } = await supabase
       .from("teams")
       .select(
@@ -98,9 +99,11 @@ module.exports = async (req, res) => {
       return respondError("snapshot_scores", snapshotScoresError);
     }
 
+    // ВАЖНО: rating_history.week NOT NULL → обязаны передать week
     const { data: historySnapshot, error: historySnapshotError } = await supabase
       .from("rating_history")
       .insert({
+        week: weekNumber,
         action: "upload_week",
         payload: {
           week_number: weekNumber,
@@ -108,6 +111,7 @@ module.exports = async (req, res) => {
           teams: snapshotTeams,
           weekly_scores: snapshotScores,
         },
+        details: null,
       })
       .select("id");
     if (historySnapshotError) {
