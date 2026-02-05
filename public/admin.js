@@ -175,12 +175,29 @@ if (toggleOrdersBtn) {
 }
 
 const performUpload = async (rows) => {
-  const weekNumber = Number(uploadWeek.value) || 1;
+  const weekNumber = Number(uploadWeek.value);
   await withButtonLoading(uploadSubmitBtn, "Сохранение...", async () => {
-    await adminFetch("/api/admin_upload_week", {
+    const token = getToken();
+    const response = await fetch("/api/admin_upload_week", {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
       body: JSON.stringify({ week_number: weekNumber, rows }),
     });
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch (error) {
+      payload = {};
+    }
+    if (!response.ok || !payload.ok) {
+      const step = payload.step ? ` (${payload.step})` : "";
+      const err = payload.error || "Ошибка записи";
+      throw new Error(`${err}${step}`);
+    }
+    alert(`Записано: ${payload.upserts}, week: ${payload.week}`);
     pendingUploadRows = [];
     uploadPreview.classList.add("hidden");
     uploadForm.reset();

@@ -33,36 +33,72 @@ module.exports = async (req, res) => {
 
   try {
     const body = await parseBody(req);
-    const weekNumber = Number(body.week_number) || 1;
+    const weekNumber = Number(body.week_number);
     const rows = Array.isArray(body.rows) ? body.rows : [];
     const supabase = getSupabase();
+
+    const respondError = (step, error) =>
+      json(res, 500, {
+        ok: false,
+        step,
+        error: error && error.message ? error.message : String(error),
+        details: error && error.details ? error.details : null,
+      });
+
+    if (!Number.isFinite(weekNumber)) {
+      return json(res, 400, { ok: false, error: "week обязателен" });
+    }
+    if (!rows.length) {
+      return json(res, 400, { ok: false, error: "rows пустой" });
+    }
+    for (const row of rows) {
+      const name = String(row.name || row.team_name || "").trim();
+      const teamId = row.team_id || "";
+      const score = Number(row.score);
+      if (!name && !teamId) {
+        return json(res, 400, {
+          ok: false,
+          error: "Некорректная строка: нет team_id/team_name",
+        });
+      }
+      if (!Number.isFinite(score)) {
+        return json(res, 400, {
+          ok: false,
+          error: "Некорректная строка: score обязателен",
+        });
+      }
+    }
 
     const { data: teams, error: teamsError } = await supabase
       .from("teams")
       .select("*");
-    if (teamsError) throw teamsError;
+    if (teamsError) return respondError("load_teams", teamsError);
 
     const { data: settings, error: settingsError } = await supabase
       .from("settings")
       .select("current_week")
       .eq("id", 1)
       .single();
-    if (settingsError) throw settingsError;
+    if (settingsError) return respondError("load_settings", settingsError);
 
     const { data: snapshotTeams, error: snapshotTeamsError } = await supabase
       .from("teams")
       .select(
         "id,current_week_score,cumulative_score,tikuns_balance,previous_rank,is_active"
       );
-    if (snapshotTeamsError) throw snapshotTeamsError;
+    if (snapshotTeamsError) {
+      return respondError("snapshot_teams", snapshotTeamsError);
+    }
 
     const { data: snapshotScores, error: snapshotScoresError } = await supabase
       .from("weekly_scores")
       .select("team_id,week_number,score")
       .eq("week_number", weekNumber);
-    if (snapshotScoresError) throw snapshotScoresError;
+    if (snapshotScoresError) {
+      return respondError("snapshot_scores", snapshotScoresError);
+    }
 
-    const { error: historySnapshotError } = await supabase
+    const { data: historySnapshot, error: historySnapshotError } = await supabase
       .from("rating_history")
       .insert({
         action: "upload_week",
@@ -72,33 +108,21 @@ module.exports = async (req, res) => {
           teams: snapshotTeams,
           weekly_scores: snapshotScores,
         },
-      });
+      })
+      .select("id");
     if (historySnapshotError) {
-      const message = String(historySnapshotError.message || "");
-      if (
-        historySnapshotError.code === "42P01" ||
-        message.includes("schema cache") ||
-        message.includes("rating_history")
-      ) {
-        console.warn(
-          "rating_history недоступна, пропускаем snapshot",
-          historySnapshotError
-        );
-      } else {
-        throw historySnapshotError;
-      }
+      return respondError("snapshot_insert", historySnapshotError);
     }
 
     // Сохраняем позиции ДО любых изменений недели
     const ranking = getRanking(teams);
-    await Promise.all(
-      ranking.map((entry) =>
-        supabase
-          .from("teams")
-          .update({ previous_rank: entry.rank })
-          .eq("id", entry.team.id)
-      )
-    );
+    for (const entry of ranking) {
+      const { error: rankError } = await supabase
+        .from("teams")
+        .update({ previous_rank: entry.rank })
+        .eq("id", entry.team.id);
+      if (rankError) return respondError("update_previous_rank", rankError);
+    }
 
     const teamMap = new Map();
     teams.forEach((team) => teamMap.set(normalizeName(team.name), team));
@@ -115,25 +139,38 @@ module.exports = async (req, res) => {
         is_active: true,
       }));
 
+    let insertedTeams = 0;
     if (newTeams.length) {
-      const { error: insertError } = await supabase.from("teams").insert(newTeams);
-      if (insertError) throw insertError;
+      const { data: inserted, error: insertError } = await supabase
+        .from("teams")
+        .insert(newTeams)
+        .select("id");
+      if (insertError) return respondError("insert_new_teams", insertError);
+      insertedTeams = (inserted || []).length;
     }
 
     const { data: refreshedTeams, error: refreshedError } = await supabase
       .from("teams")
       .select("*");
-    if (refreshedError) throw refreshedError;
+    if (refreshedError) return respondError("reload_teams", refreshedError);
 
     const refreshedMap = new Map();
     refreshedTeams.forEach((team) =>
       refreshedMap.set(normalizeName(team.name), team)
     );
 
-    await supabase.from("weekly_scores").delete().eq("week_number", weekNumber);
+    const { data: deletedScores, error: deleteScoresError } = await supabase
+      .from("weekly_scores")
+      .delete()
+      .eq("week_number", weekNumber)
+      .select("id");
+    if (deleteScoresError) {
+      return respondError("delete_weekly_scores", deleteScoresError);
+    }
 
     const insertScores = rows.map((row) => {
-      const team = refreshedMap.get(normalizeName(row.name));
+      const teamName = String(row.name || row.team_name || "").trim();
+      const team = refreshedMap.get(normalizeName(teamName));
       return {
         team_id: team.id,
         week_number: weekNumber,
@@ -141,22 +178,25 @@ module.exports = async (req, res) => {
       };
     });
 
+    let insertedScores = 0;
     if (insertScores.length) {
-      const { error: scoresError } = await supabase
+      const { data: inserted, error: scoresError } = await supabase
         .from("weekly_scores")
-        .insert(insertScores);
-      if (scoresError) throw scoresError;
+        .insert(insertScores)
+        .select("id");
+      if (scoresError) return respondError("insert_weekly_scores", scoresError);
+      insertedScores = (inserted || []).length;
     }
 
     const { data: allScores, error: allScoresError } = await supabase
       .from("weekly_scores")
       .select("team_id,week_number,score");
-    if (allScoresError) throw allScoresError;
+    if (allScoresError) return respondError("load_all_scores", allScoresError);
 
     const { data: history, error: historyError } = await supabase
       .from("balance_history")
       .select("team_id,amount");
-    if (historyError) throw historyError;
+    if (historyError) return respondError("load_balance_history", historyError);
 
     const scoreTotals = {};
     const weekTotals = {};
@@ -175,11 +215,12 @@ module.exports = async (req, res) => {
         (balanceAdjust[row.team_id] || 0) + Number(row.amount || 0);
     });
 
+    let updatedTeams = 0;
     for (const team of refreshedTeams) {
       const cumulative = scoreTotals[team.id] || 0;
       const weekScore = weekTotals[team.id] || 0;
       const tikuns = Math.round(cumulative * 100) + (balanceAdjust[team.id] || 0);
-      await supabase
+      const { error: updateError } = await supabase
         .from("teams")
         .update({
           cumulative_score: cumulative,
@@ -187,17 +228,34 @@ module.exports = async (req, res) => {
           tikuns_balance: tikuns,
         })
         .eq("id", team.id);
+      if (updateError) return respondError("update_team_scores", updateError);
+      updatedTeams += 1;
     }
 
-    await supabase
+    const { error: settingsUpdateError } = await supabase
       .from("settings")
       .update({ current_week: weekNumber })
       .eq("id", 1);
+    if (settingsUpdateError) {
+      return respondError("update_settings", settingsUpdateError);
+    }
 
-    return json(res, 200, { ok: true });
+    return json(res, 200, {
+      ok: true,
+      week: weekNumber,
+      upserts: insertedScores,
+      history_inserts: (historySnapshot || []).length,
+      updated_public_settings: true,
+      inserted_teams: insertedTeams,
+      updated_teams: updatedTeams,
+      deleted_scores: (deletedScores || []).length,
+    });
   } catch (error) {
-    const details =
-      error && error.message ? error.message : "Не удалось загрузить неделю";
-    return json(res, 500, { error: details });
+    return json(res, 500, {
+      ok: false,
+      step: "unexpected",
+      error: error && error.message ? error.message : String(error),
+      details: error && error.details ? error.details : null,
+    });
   }
 };
