@@ -45,6 +45,7 @@ module.exports = async (req, res) => {
         details: error && error.details ? error.details : null,
       });
 
+    // --- Validate input ---
     if (!Number.isFinite(weekNumber)) {
       return json(res, 400, { ok: false, error: "week обязателен" });
     }
@@ -53,25 +54,17 @@ module.exports = async (req, res) => {
     }
     for (const row of rows) {
       const name = String(row.name || row.team_name || "").trim();
-      const teamId = row.team_id || "";
       const score = Number(row.score);
-      if (!name && !teamId) {
-        return json(res, 400, {
-          ok: false,
-          error: "Некорректная строка: нет team_id/team_name",
-        });
+      if (!name) {
+        return json(res, 400, { ok: false, error: "Некорректная строка: нет team_name" });
       }
       if (!Number.isFinite(score)) {
-        return json(res, 400, {
-          ok: false,
-          error: "Некорректная строка: score обязателен",
-        });
+        return json(res, 400, { ok: false, error: "Некорректная строка: score обязателен" });
       }
     }
 
-    const { data: teams, error: teamsError } = await supabase
-      .from("teams")
-      .select("*");
+    // --- Load current state ---
+    const { data: teams, error: teamsError } = await supabase.from("teams").select("*");
     if (teamsError) return respondError("load_teams", teamsError);
 
     const { data: settings, error: settingsError } = await supabase
@@ -81,29 +74,25 @@ module.exports = async (req, res) => {
       .single();
     if (settingsError) return respondError("load_settings", settingsError);
 
-    // Снимок ДО изменений
     const { data: snapshotTeams, error: snapshotTeamsError } = await supabase
       .from("teams")
-      .select(
-        "id,current_week_score,cumulative_score,tikuns_balance,previous_rank,is_active"
-      );
-    if (snapshotTeamsError) {
-      return respondError("snapshot_teams", snapshotTeamsError);
-    }
+      .select("id,current_week_score,cumulative_score,tikuns_balance,previous_rank,is_active");
+    if (snapshotTeamsError) return respondError("snapshot_teams", snapshotTeamsError);
 
     const { data: snapshotScores, error: snapshotScoresError } = await supabase
       .from("weekly_scores")
       .select("team_id,week_number,score")
       .eq("week_number", weekNumber);
-    if (snapshotScoresError) {
-      return respondError("snapshot_scores", snapshotScoresError);
-    }
+    if (snapshotScoresError) return respondError("snapshot_scores", snapshotScoresError);
 
-    // ВАЖНО: rating_history.week NOT NULL → обязаны передать week
+    // --- Snapshot into rating_history (если таблица требует week / uploaded_at - заполняем) ---
+    const nowIso = new Date().toISOString();
     const { data: historySnapshot, error: historySnapshotError } = await supabase
       .from("rating_history")
       .insert({
         week: weekNumber,
+        uploaded_at: nowIso,
+        created_at: nowIso,
         action: "upload_week",
         payload: {
           week_number: weekNumber,
@@ -111,14 +100,11 @@ module.exports = async (req, res) => {
           teams: snapshotTeams,
           weekly_scores: snapshotScores,
         },
-        details: null,
       })
       .select("id");
-    if (historySnapshotError) {
-      return respondError("snapshot_insert", historySnapshotError);
-    }
+    if (historySnapshotError) return respondError("snapshot_insert", historySnapshotError);
 
-    // Сохраняем позиции ДО любых изменений недели
+    // --- Save ranks BEFORE changes (only active) ---
     const ranking = getRanking(teams);
     for (const entry of ranking) {
       const { error: rankError } = await supabase
@@ -128,12 +114,17 @@ module.exports = async (req, res) => {
       if (rankError) return respondError("update_previous_rank", rankError);
     }
 
+    // --- Build map of existing teams by normalized name (including inactive) ---
     const teamMap = new Map();
     teams.forEach((team) => teamMap.set(normalizeName(team.name), team));
 
-    const newTeams = rows
-      .map((row) => String(row.name || "").trim())
-      .filter((name) => name && !teamMap.has(normalizeName(name)))
+    // --- Insert teams that truly do not exist ---
+    const uniqueNames = Array.from(
+      new Set(rows.map((r) => String(r.name || r.team_name || "").trim()).filter(Boolean))
+    );
+
+    const newTeams = uniqueNames
+      .filter((name) => !teamMap.has(normalizeName(name)))
       .map((name) => ({
         name,
         current_week_score: 0,
@@ -153,28 +144,47 @@ module.exports = async (req, res) => {
       insertedTeams = (inserted || []).length;
     }
 
+    // --- Reload teams after possible inserts ---
     const { data: refreshedTeams, error: refreshedError } = await supabase
       .from("teams")
       .select("*");
     if (refreshedError) return respondError("reload_teams", refreshedError);
 
     const refreshedMap = new Map();
-    refreshedTeams.forEach((team) =>
-      refreshedMap.set(normalizeName(team.name), team)
-    );
+    refreshedTeams.forEach((team) => refreshedMap.set(normalizeName(team.name), team));
 
+    // --- IMPORTANT FIX: Reactivate teams that are in uploaded Excel ---
+    const uploadedTeamIds = [];
+    for (const name of uniqueNames) {
+      const team = refreshedMap.get(normalizeName(name));
+      if (!team) {
+        return respondError("resolve_team_ids", new Error(`Team not found after reload: "${name}"`));
+      }
+      uploadedTeamIds.push(team.id);
+    }
+
+    // Активируем только те команды, что есть в Excel
+    const { error: reactivateError } = await supabase
+      .from("teams")
+      .update({ is_active: true })
+      .in("id", uploadedTeamIds);
+    if (reactivateError) return respondError("reactivate_uploaded_teams", reactivateError);
+
+    // --- Delete old scores for this week (replace) ---
     const { data: deletedScores, error: deleteScoresError } = await supabase
       .from("weekly_scores")
       .delete()
       .eq("week_number", weekNumber)
       .select("id");
-    if (deleteScoresError) {
-      return respondError("delete_weekly_scores", deleteScoresError);
-    }
+    if (deleteScoresError) return respondError("delete_weekly_scores", deleteScoresError);
 
+    // --- Insert weekly scores for this week ---
     const insertScores = rows.map((row) => {
       const teamName = String(row.name || row.team_name || "").trim();
       const team = refreshedMap.get(normalizeName(teamName));
+      if (!team) {
+        throw new Error(`Не найдена команда по имени: "${teamName}"`);
+      }
       return {
         team_id: team.id,
         week_number: weekNumber,
@@ -192,6 +202,7 @@ module.exports = async (req, res) => {
       insertedScores = (inserted || []).length;
     }
 
+    // --- Recalculate totals ---
     const { data: allScores, error: allScoresError } = await supabase
       .from("weekly_scores")
       .select("team_id,week_number,score");
@@ -205,18 +216,15 @@ module.exports = async (req, res) => {
     const scoreTotals = {};
     const weekTotals = {};
     allScores.forEach((row) => {
-      scoreTotals[row.team_id] =
-        (scoreTotals[row.team_id] || 0) + Number(row.score || 0);
+      scoreTotals[row.team_id] = (scoreTotals[row.team_id] || 0) + Number(row.score || 0);
       if (row.week_number === weekNumber) {
-        weekTotals[row.team_id] =
-          (weekTotals[row.team_id] || 0) + Number(row.score || 0);
+        weekTotals[row.team_id] = (weekTotals[row.team_id] || 0) + Number(row.score || 0);
       }
     });
 
     const balanceAdjust = {};
     history.forEach((row) => {
-      balanceAdjust[row.team_id] =
-        (balanceAdjust[row.team_id] || 0) + Number(row.amount || 0);
+      balanceAdjust[row.team_id] = (balanceAdjust[row.team_id] || 0) + Number(row.amount || 0);
     });
 
     let updatedTeams = 0;
@@ -224,6 +232,7 @@ module.exports = async (req, res) => {
       const cumulative = scoreTotals[team.id] || 0;
       const weekScore = weekTotals[team.id] || 0;
       const tikuns = Math.round(cumulative * 100) + (balanceAdjust[team.id] || 0);
+
       const { error: updateError } = await supabase
         .from("teams")
         .update({
@@ -236,13 +245,12 @@ module.exports = async (req, res) => {
       updatedTeams += 1;
     }
 
+    // --- Update current week ---
     const { error: settingsUpdateError } = await supabase
       .from("settings")
       .update({ current_week: weekNumber })
       .eq("id", 1);
-    if (settingsUpdateError) {
-      return respondError("update_settings", settingsUpdateError);
-    }
+    if (settingsUpdateError) return respondError("update_settings", settingsUpdateError);
 
     return json(res, 200, {
       ok: true,
@@ -253,6 +261,7 @@ module.exports = async (req, res) => {
       inserted_teams: insertedTeams,
       updated_teams: updatedTeams,
       deleted_scores: (deletedScores || []).length,
+      reactivated_teams: uploadedTeamIds.length,
     });
   } catch (error) {
     return json(res, 500, {
