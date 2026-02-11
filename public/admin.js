@@ -169,7 +169,10 @@ function setupAdminModals() {
     const modal = document.getElementById(id);
     const closeBtn = document.getElementById(closeId);
     if (!modal || !closeBtn) return;
-    const close = () => modal.classList.add("hidden");
+    const close = () => {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    };
     closeBtn.addEventListener("click", (e) => {
       e.preventDefault();
       close();
@@ -185,7 +188,9 @@ function setupAdminModals() {
       return el && !el.classList.contains("hidden");
     });
     if (openModal) {
-      document.getElementById(openModal.id).classList.add("hidden");
+      const el = document.getElementById(openModal.id);
+      el.classList.add("hidden");
+      el.setAttribute("aria-hidden", "true");
     }
   });
   window.__ADMIN_MODALS_READY__ = true;
@@ -194,33 +199,33 @@ function setupAdminModals() {
 function openTikunsModal() {
   setupAdminModals();
   const modal = document.getElementById("modal-tikuns");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) { modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false"); }
 }
 
 function openScoreModal() {
   setupAdminModals();
   const modal = document.getElementById("modal-score");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) { modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false"); }
   renderScoreTeamSelect();
 }
 
 function openDeleteTeamsModal() {
   setupAdminModals();
   const modal = document.getElementById("modal-delete-teams");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) { modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false"); }
   refreshTeams().then(() => renderTeams());
 }
 
 function openProductsModal() {
   setupAdminModals();
   const modal = document.getElementById("modal-products");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) { modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false"); }
 }
 
 function openOrdersModal() {
   setupAdminModals();
   const modal = document.getElementById("modal-orders");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) { modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false"); }
 }
 
 if (btnOpenTikuns) btnOpenTikuns.addEventListener("click", openTikunsModal);
@@ -352,7 +357,7 @@ if (scoreForm) {
   scoreForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!scoreTeam || scoreTeam.disabled || !scoreTeam.value) return;
-    const points = Number(scorePoints.value);
+    const points = parseScore(scorePoints.value);
     if (!Number.isFinite(points) || points < 0) return;
     const delta = scoreOp && scoreOp.value === "-" ? -points : points;
     const reason = (scoreReason && scoreReason.value || "").trim();

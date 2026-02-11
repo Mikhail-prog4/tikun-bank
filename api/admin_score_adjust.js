@@ -16,11 +16,14 @@ module.exports = async (req, res) => {
   try {
     const body = await parseBody(req);
     const teamId = body.team_id;
-    const delta = Number(body.delta);
     const reason = String(body.reason || "").trim();
     if (!teamId || reason === "") {
       return json(res, 400, { error: "Некорректные данные" });
     }
+    const rawDelta = body.delta;
+    const delta = typeof rawDelta === "number" && Number.isFinite(rawDelta)
+      ? rawDelta
+      : Number(String(rawDelta ?? "").replace(",", "."));
     if (!Number.isFinite(delta)) {
       return json(res, 400, { error: "Баллы должны быть числом" });
     }
@@ -34,7 +37,8 @@ module.exports = async (req, res) => {
       return json(res, 400, { error: "Команда не найдена" });
     }
 
-    const newScore = Math.max(0, (team.cumulative_score || 0) + delta);
+    const currentScore = Number(String(team.cumulative_score ?? "").replace(",", ".")) || 0;
+    const newScore = Math.max(0, currentScore + delta);
     const { error: updateError } = await supabase
       .from("teams")
       .update({ cumulative_score: newScore })
@@ -49,7 +53,7 @@ module.exports = async (req, res) => {
           team_name: team.name,
           delta,
           reason,
-          previous_score: team.cumulative_score,
+          previous_score: currentScore,
           new_score: newScore,
         },
       },
