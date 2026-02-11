@@ -84,13 +84,18 @@ const productAddBtn = productAddForm
 
 const ordersFilter = document.getElementById("orders-filter");
 const ordersList = document.getElementById("orders-list");
+const scoreForm = document.getElementById("score-form");
+const scoreTeam = document.getElementById("score-team");
+const scoreOp = document.getElementById("score-op");
+const scorePoints = document.getElementById("score-points");
+const scoreReason = document.getElementById("score-reason");
+const scoreSubmitBtn = document.getElementById("score-submit-btn");
 
-const toggleDeleteTeamBtn = document.getElementById("toggle-delete-team");
-const toggleProductsBtn = document.getElementById("toggle-products");
-const toggleOrdersBtn = document.getElementById("toggle-orders");
-const teamDeletePanel = document.getElementById("team-delete-panel");
-const productsPanel = document.getElementById("products-panel");
-const ordersPanel = document.getElementById("orders-panel");
+const btnOpenTikuns = document.getElementById("btn-open-tikuns");
+const btnOpenScore = document.getElementById("btn-open-score");
+const btnOpenDeleteTeams = document.getElementById("btn-open-delete-teams");
+const btnOpenProducts = document.getElementById("btn-open-products");
+const btnOpenOrders = document.getElementById("btn-open-orders");
 
 let pendingUploadRows = [];
 let selectedTeamIds = new Set();
@@ -151,28 +156,78 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
-const togglePanel = (panel) => {
-  if (!panel) return;
-  panel.classList.toggle("hidden");
-};
-
-if (toggleDeleteTeamBtn) {
-  toggleDeleteTeamBtn.addEventListener("click", () => {
-    togglePanel(teamDeletePanel);
+function setupAdminModals() {
+  if (window.__ADMIN_MODALS_READY__) return;
+  const modals = [
+    { id: "modal-tikuns", closeId: "modal-tikuns-close" },
+    { id: "modal-score", closeId: "modal-score-close" },
+    { id: "modal-delete-teams", closeId: "modal-delete-teams-close" },
+    { id: "modal-products", closeId: "modal-products-close" },
+    { id: "modal-orders", closeId: "modal-orders-close" },
+  ];
+  modals.forEach(({ id, closeId }) => {
+    const modal = document.getElementById(id);
+    const closeBtn = document.getElementById(closeId);
+    if (!modal || !closeBtn) return;
+    const close = () => modal.classList.add("hidden");
+    closeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      close();
+    });
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) close();
+    });
   });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const openModal = modals.find(({ id }) => {
+      const el = document.getElementById(id);
+      return el && !el.classList.contains("hidden");
+    });
+    if (openModal) {
+      document.getElementById(openModal.id).classList.add("hidden");
+    }
+  });
+  window.__ADMIN_MODALS_READY__ = true;
 }
 
-if (toggleProductsBtn) {
-  toggleProductsBtn.addEventListener("click", () => {
-    togglePanel(productsPanel);
-  });
+function openTikunsModal() {
+  setupAdminModals();
+  const modal = document.getElementById("modal-tikuns");
+  if (modal) modal.classList.remove("hidden");
 }
 
-if (toggleOrdersBtn) {
-  toggleOrdersBtn.addEventListener("click", () => {
-    togglePanel(ordersPanel);
-  });
+function openScoreModal() {
+  setupAdminModals();
+  const modal = document.getElementById("modal-score");
+  if (modal) modal.classList.remove("hidden");
+  renderScoreTeamSelect();
 }
+
+function openDeleteTeamsModal() {
+  setupAdminModals();
+  const modal = document.getElementById("modal-delete-teams");
+  if (modal) modal.classList.remove("hidden");
+  refreshTeams().then(() => renderTeams());
+}
+
+function openProductsModal() {
+  setupAdminModals();
+  const modal = document.getElementById("modal-products");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function openOrdersModal() {
+  setupAdminModals();
+  const modal = document.getElementById("modal-orders");
+  if (modal) modal.classList.remove("hidden");
+}
+
+if (btnOpenTikuns) btnOpenTikuns.addEventListener("click", openTikunsModal);
+if (btnOpenScore) btnOpenScore.addEventListener("click", openScoreModal);
+if (btnOpenDeleteTeams) btnOpenDeleteTeams.addEventListener("click", openDeleteTeamsModal);
+if (btnOpenProducts) btnOpenProducts.addEventListener("click", openProductsModal);
+if (btnOpenOrders) btnOpenOrders.addEventListener("click", openOrdersModal);
 
 const performUpload = async (rows) => {
   const weekNumber = Number(uploadWeek.value);
@@ -292,6 +347,34 @@ tikunForm.addEventListener("submit", async (event) => {
     alert("Не удалось обновить баланс.");
   }
 });
+
+if (scoreForm) {
+  scoreForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!scoreTeam || scoreTeam.disabled || !scoreTeam.value) return;
+    const points = Number(scorePoints.value);
+    if (!Number.isFinite(points) || points < 0) return;
+    const delta = scoreOp && scoreOp.value === "-" ? -points : points;
+    const reason = (scoreReason && scoreReason.value || "").trim();
+    if (!reason) return;
+    try {
+      await adminFetch("/api/admin_score_adjust", {
+        method: "POST",
+        body: JSON.stringify({
+          team_id: scoreTeam.value,
+          delta,
+          reason,
+        }),
+      });
+      scoreForm.reset();
+      await refreshTeams();
+      flashButton(scoreSubmitBtn, true);
+    } catch (error) {
+      flashButton(scoreSubmitBtn, false);
+      alert("Не удалось изменить общий балл.");
+    }
+  });
+}
 
 if (teamDeleteSearch) {
   teamDeleteSearch.addEventListener("input", () => {
@@ -458,7 +541,7 @@ const renderTikuns = async () => {
   }
 
   tikunHistory.innerHTML = "";
-  cachedBalanceHistory.slice(0, 8).forEach((entry) => {
+  (cachedBalanceHistory || []).slice(0, 8).forEach((entry) => {
     const team = cachedTeams.find((item) => item.id === entry.team_id);
     const row = document.createElement("div");
     row.className = "history-item";
@@ -472,6 +555,29 @@ const renderTikuns = async () => {
     `;
     tikunHistory.appendChild(row);
   });
+};
+
+const renderScoreTeamSelect = async () => {
+  if (!scoreTeam) return;
+  scoreTeam.innerHTML = "";
+  scoreTeam.appendChild(new Option("Выберите команду", ""));
+  const teams = await loadTeamsForSelects();
+  const activeTeams = teams.filter((t) => t.is_active !== false);
+  if (!activeTeams.length) {
+    scoreTeam.innerHTML = "";
+    scoreTeam.appendChild(new Option("Нет команд", ""));
+    scoreTeam.disabled = true;
+    if (scoreSubmitBtn) scoreSubmitBtn.disabled = true;
+  } else {
+    scoreTeam.disabled = false;
+    if (scoreSubmitBtn) scoreSubmitBtn.disabled = false;
+    activeTeams.forEach((team) => {
+      const opt = document.createElement("option");
+      opt.value = team.id;
+      opt.textContent = team.name;
+      scoreTeam.appendChild(opt);
+    });
+  }
 };
 
 const renderTeams = async () => {

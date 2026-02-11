@@ -402,6 +402,26 @@ a {
   overflow: auto;
 }
 
+.modal__content {
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.modal__content--xl {
+  width: min(1000px, 92vw);
+  max-width: min(1000px, 92vw);
+}
+
+.admin-actions-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 .modal-close {
   position: absolute;
   top: 10px;

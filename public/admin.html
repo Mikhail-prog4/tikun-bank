@@ -80,41 +80,81 @@
         </section>
 
         <section class="card">
-          <div class="card-header">
-            <h2>Ручное управление тикунами</h2>
-          </div>
-          <form id="tikun-form" class="form form-row">
-            <label>
-              Команда
-              <select id="tikun-team" required></select>
-            </label>
-            <label>
-              Сумма (+/-)
-              <input id="tikun-amount" type="number" step="1" required />
-            </label>
-            <label>
-              Причина
-              <input id="tikun-reason" type="text" required />
-            </label>
-            <button class="primary-btn" type="submit">Применить</button>
-          </form>
-          <div id="tikun-history" class="history-list"></div>
-        </section>
-
-        <section class="card">
-          <div class="admin-actions">
-            <button id="toggle-delete-team" class="danger-btn" type="button">
+          <div class="admin-actions-row">
+            <button id="btn-open-tikuns" class="secondary-btn" type="button">
+              Ручное управление тикунами
+            </button>
+            <button id="btn-open-score" class="secondary-btn" type="button">
+              Ручное управление Общим балом
+            </button>
+            <button id="btn-open-delete-teams" class="danger-btn" type="button">
               Удалить команды
             </button>
-            <button id="toggle-products" class="secondary-btn" type="button">
+            <button id="btn-open-products" class="secondary-btn" type="button">
               Товары магазина
             </button>
-            <button id="toggle-orders" class="secondary-btn" type="button">
+            <button id="btn-open-orders" class="secondary-btn" type="button">
               Заявки
             </button>
           </div>
+        </section>
 
-          <div id="team-delete-panel" class="panel hidden">
+        <div id="modal-tikuns" class="modal hidden" aria-hidden="true">
+          <div class="modal-content modal__content modal__content--xl">
+            <button class="modal-close modal__close" type="button" id="modal-tikuns-close" aria-label="Закрыть">×</button>
+            <div class="card-header"><h2>Ручное управление тикунами</h2></div>
+            <form id="tikun-form" class="form form-row">
+              <label>
+                Команда
+                <select id="tikun-team" required></select>
+              </label>
+              <label>
+                Сумма (+/-)
+                <input id="tikun-amount" type="number" step="1" required />
+              </label>
+              <label>
+                Причина
+                <input id="tikun-reason" type="text" required />
+              </label>
+              <button class="primary-btn" type="submit">Применить</button>
+            </form>
+            <div id="tikun-history" class="history-list"></div>
+          </div>
+        </div>
+
+        <div id="modal-score" class="modal hidden" aria-hidden="true">
+          <div class="modal-content modal__content modal__content--xl">
+            <button class="modal-close modal__close" type="button" id="modal-score-close" aria-label="Закрыть">×</button>
+            <div class="card-header"><h2>Ручное управление Общим баллом</h2></div>
+            <form id="score-form" class="form form-row">
+              <label>
+                Команда
+                <select id="score-team" required></select>
+              </label>
+              <label>
+                Операция
+                <select id="score-op">
+                  <option value="+">+</option>
+                  <option value="-">−</option>
+                </select>
+              </label>
+              <label>
+                Баллы
+                <input id="score-points" type="number" step="0.01" min="0" required />
+              </label>
+              <label>
+                Причина
+                <textarea id="score-reason" rows="2" required></textarea>
+              </label>
+              <button class="primary-btn" type="submit" id="score-submit-btn">Сохранить</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="modal-delete-teams" class="modal hidden" aria-hidden="true">
+          <div class="modal-content modal__content modal__content--xl">
+            <button class="modal-close modal__close" type="button" id="modal-delete-teams-close" aria-label="Закрыть">×</button>
+            <div class="card-header"><h2>Удалить команды</h2></div>
             <div class="form">
               <label>
                 Поиск команды
@@ -123,72 +163,68 @@
             </div>
             <div class="team-delete-tools">
               <div class="actions">
-                <button id="team-select-all" class="secondary-btn" type="button">
-                  Выбрать все
-                </button>
-                <button id="team-clear-all" class="secondary-btn" type="button">
-                  Снять все
-                </button>
+                <button id="team-select-all" class="secondary-btn" type="button">Выбрать все</button>
+                <button id="team-clear-all" class="secondary-btn" type="button">Снять все</button>
               </div>
               <div id="team-delete-count" class="muted">Выбрано: 0</div>
-              <button id="team-delete-submit" class="danger-btn" type="button">
-                Удалить выбранные
-              </button>
+              <button id="team-delete-submit" class="danger-btn" type="button">Удалить выбранные</button>
             </div>
             <div id="team-delete-list" class="team-checklist"></div>
             <div id="team-delete-result" class="muted"></div>
           </div>
-        </section>
+        </div>
 
-        <section id="products-panel" class="card hidden">
-          <div class="card-header">
-            <h2>Товары магазина</h2>
+        <div id="modal-products" class="modal hidden" aria-hidden="true">
+          <div class="modal-content modal__content modal__content--xl">
+            <button class="modal-close modal__close" type="button" id="modal-products-close" aria-label="Закрыть">×</button>
+            <div class="card-header"><h2>Товары магазина</h2></div>
+            <form id="product-add-form" class="form form-row">
+              <label>
+                Название
+                <input id="product-name" type="text" required />
+              </label>
+              <label>
+                Цена, ₮
+                <input id="product-price" type="number" min="0" step="1" required />
+              </label>
+              <label>
+                Категория
+                <select id="product-category" required>
+                  <option value="people">Люди</option>
+                  <option value="expertise">Экспертиза</option>
+                  <option value="ads">Реклама</option>
+                  <option value="other">Разное</option>
+                </select>
+              </label>
+              <label>
+                Описание
+                <input id="product-description" type="text" required />
+              </label>
+              <button class="primary-btn" type="submit">Добавить</button>
+            </form>
+            <div id="products-list" class="list"></div>
           </div>
-          <form id="product-add-form" class="form form-row">
-            <label>
-              Название
-              <input id="product-name" type="text" required />
-            </label>
-            <label>
-              Цена, ₮
-              <input id="product-price" type="number" min="0" step="1" required />
-            </label>
-            <label>
-              Категория
-              <select id="product-category" required>
-                <option value="people">Люди</option>
-                <option value="expertise">Экспертиза</option>
-                <option value="ads">Реклама</option>
-                <option value="other">Разное</option>
-              </select>
-            </label>
-            <label>
-              Описание
-              <input id="product-description" type="text" required />
-            </label>
-            <button class="primary-btn" type="submit">Добавить</button>
-          </form>
-          <div id="products-list" class="list"></div>
-        </section>
+        </div>
 
-        <section id="orders-panel" class="card hidden">
-          <div class="card-header">
-            <h2>Заявки</h2>
+        <div id="modal-orders" class="modal hidden" aria-hidden="true">
+          <div class="modal-content modal__content modal__content--xl">
+            <button class="modal-close modal__close" type="button" id="modal-orders-close" aria-label="Закрыть">×</button>
+            <div class="card-header"><h2>Заявки</h2></div>
+            <div class="form form-row">
+              <label>
+                Фильтр по статусу
+                <select id="orders-filter">
+                  <option value="all">Все</option>
+                  <option value="new">Новая</option>
+                  <option value="approved">Одобрена</option>
+                  <option value="rejected">Отклонена</option>
+                  <option value="completed">Выполнена</option>
+                </select>
+              </label>
+            </div>
+            <div id="orders-list" class="list"></div>
           </div>
-          <div class="form form-row">
-            <label>
-              Фильтр по статусу
-              <select id="orders-filter">
-                <option value="all">Все</option>
-                <option value="new">Новая</option>
-                <option value="approved">Одобрена</option>
-                <option value="rejected">Отклонена</option>
-                <option value="completed">Выполнена</option>
-              </select>
-            </label>
-          </div>
-          <div id="orders-list" class="list"></div>
-        </section>
+        </div>
       </div>
     </main>
 
