@@ -12,6 +12,7 @@ module.exports = async (req, res) => {
     return;
   }
   res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store");
   res.end(
     JSON.stringify({
       SUPABASE_URL: supabaseUrl,

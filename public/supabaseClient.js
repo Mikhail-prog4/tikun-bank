@@ -32,7 +32,7 @@ const fetchConfigWithTimeout = async (url, timeoutMs) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
     if (!response.ok) {
       console.warn(`[supabase] ${url} status: ${response.status}`);
       return null;
