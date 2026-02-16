@@ -240,6 +240,14 @@ module.exports = async (req, res) => {
       .select("team_id,amount");
     if (historyError) return respondError("load_balance_history", historyError);
 
+    // Загружаем ручные корректировки баллов из rating_history
+    const { data: scoreAdjustments, error: scoreAdjError } = await supabase
+      .from("rating_history")
+      .select("action,payload")
+      .eq("action", "score_adjust")
+      .eq("undone", false);
+    if (scoreAdjError) return respondError("load_score_adjustments", scoreAdjError);
+
     const scoreTotals = {};
     const weekTotals = {};
     allScores.forEach((row) => {
@@ -250,6 +258,15 @@ module.exports = async (req, res) => {
       }
     });
 
+    // Суммируем ручные корректировки баллов (score_adjust) по каждой команде
+    const scoreManualAdjust = {};
+    (scoreAdjustments || []).forEach((row) => {
+      const p = row.payload;
+      if (p && p.team_id && typeof p.delta === "number") {
+        scoreManualAdjust[p.team_id] = (scoreManualAdjust[p.team_id] || 0) + p.delta;
+      }
+    });
+
     const balanceAdjust = {};
     history.forEach((row) => {
       balanceAdjust[row.team_id] = (balanceAdjust[row.team_id] || 0) + Number(row.amount || 0);
@@ -257,7 +274,9 @@ module.exports = async (req, res) => {
 
     let updatedTeams = 0;
     for (const team of refreshedTeams) {
-      const cumulative = scoreTotals[team.id] || 0;
+      const weeklyTotal = scoreTotals[team.id] || 0;
+      const manualAdj = scoreManualAdjust[team.id] || 0;
+      const cumulative = Math.max(0, weeklyTotal + manualAdj);
       const weekScore = weekTotals[team.id] || 0;
       const tikuns = Math.round(cumulative * 100) + (balanceAdjust[team.id] || 0);
 

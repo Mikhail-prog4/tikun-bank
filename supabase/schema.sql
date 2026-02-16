@@ -77,8 +77,7 @@ alter table settings
   add constraint settings_singleton_check
   check (id = 1);
 
-create unique index if not exists weekly_scores_team_week
-  on weekly_scores(team_id, week_number);
+-- unique index уже создаётся через unique constraint в определении таблицы
 create index if not exists weekly_scores_week_idx on weekly_scores(week_number);
 create index if not exists teams_cumulative_idx on teams(cumulative_score desc);
 create index if not exists orders_status_idx on orders(status);
