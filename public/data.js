@@ -8,6 +8,43 @@
     other: "Разное",
   };
 
+  const escapeHtml = (value) => {
+    const s = String(value ?? "");
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
+  const flashButton = (button, ok = true) => {
+    if (!button) return;
+    const className = ok ? "btn--success-flash" : "btn--error-flash";
+    button.classList.add(className);
+    setTimeout(() => button.classList.remove(className), 500);
+  };
+
+  const withButtonLoading = async (button, pendingText, action) => {
+    if (!button) {
+      return action();
+    }
+    const originalText = button.textContent;
+    button.disabled = true;
+    if (pendingText) button.textContent = pendingText;
+    try {
+      const result = await action();
+      flashButton(button, true);
+      return result;
+    } catch (error) {
+      flashButton(button, false);
+      throw error;
+    } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  };
+
   const getSupabase = async () => window.getSupabaseClient();
 
   const formatMoney = (value) =>
@@ -93,6 +130,9 @@
 
   window.TikunBank = {
     PRODUCT_CATEGORIES,
+    escapeHtml,
+    flashButton,
+    withButtonLoading,
     getRanking,
     formatMoney,
     formatDate,

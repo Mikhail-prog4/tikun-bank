@@ -57,11 +57,17 @@ module.exports = async (req, res) => {
         }
 
         const newBalance = team.tikuns_balance - product.price;
-        const { error: balanceError } = await supabase
+        // Conditional update: обновляем только если баланс не изменился между чтением и записью
+        const { data: writeResult, error: writeError } = await supabase
           .from("teams")
           .update({ tikuns_balance: newBalance })
-          .eq("id", order.team_id);
-        if (balanceError) throw balanceError;
+          .eq("id", order.team_id)
+          .eq("tikuns_balance", team.tikuns_balance)
+          .select("id");
+        if (writeError) throw writeError;
+        if (!writeResult || !writeResult.length) {
+          return json(res, 409, { error: "Баланс изменился, повторите операцию" });
+        }
 
         const { error: historyError } = await supabase
           .from("balance_history")

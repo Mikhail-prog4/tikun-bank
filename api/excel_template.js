@@ -1,7 +1,13 @@
 const ExcelJS = require("exceljs");
-const { getSupabase } = require("./_utils");
+const { getSupabase, json, requireAdmin } = require("./_utils");
 
 module.exports = async (req, res) => {
+  try {
+    requireAdmin(req);
+  } catch (error) {
+    return json(res, 401, { error: "Неавторизовано" });
+  }
+
   try {
     if (req.method !== "GET") {
       res.statusCode = 405;

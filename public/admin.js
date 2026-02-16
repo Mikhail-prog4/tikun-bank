@@ -1,44 +1,14 @@
-const { PRODUCT_CATEGORIES, formatMoney, formatDate, fetchTeams } =
-  window.TikunBank;
+const {
+  PRODUCT_CATEGORIES,
+  escapeHtml,
+  flashButton,
+  withButtonLoading,
+  formatMoney,
+  formatDate,
+  fetchTeams,
+} = window.TikunBank;
 
 const cache = window.__CACHE__ || (window.__CACHE__ = {});
-
-const escapeHtml = (value) => {
-  const s = String(value ?? "");
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
-
-const flashButton = (button, ok = true) => {
-  if (!button) return;
-  const className = ok ? "btn--success-flash" : "btn--error-flash";
-  button.classList.add(className);
-  setTimeout(() => button.classList.remove(className), 500);
-};
-
-const withButtonLoading = async (button, pendingText, action) => {
-  if (!button) {
-    return action();
-  }
-  const originalText = button.textContent;
-  button.disabled = true;
-  if (pendingText) button.textContent = pendingText;
-  try {
-    const result = await action();
-    flashButton(button, true);
-    return result;
-  } catch (error) {
-    flashButton(button, false);
-    throw error;
-  } finally {
-    button.disabled = false;
-    button.textContent = originalText;
-  }
-};
 
 const loginCard = document.getElementById("login-card");
 const adminContent = document.getElementById("admin-content");
@@ -53,7 +23,7 @@ const previewBody = document.getElementById("preview-body");
 const uploadSubmitBtn = uploadForm
   ? uploadForm.querySelector('button[type="submit"]')
   : null;
-const downloadTemplateBtn = document.getElementById("download-template");
+const undoLastActionBtn = document.getElementById("undo-last-action");
 
 const tikunForm = document.getElementById("tikun-form");
 const tikunTeam = document.getElementById("tikun-team");
@@ -305,7 +275,7 @@ uploadForm.addEventListener("submit", async (event) => {
   }
   if (parsed.errorCode === "EXPECTED_COUNT_MISMATCH") {
     alert(
-      `Ожидалось 22 команды (B4:B25), получено ${parsed.actual}. Проверь файл/диапазон.`
+      `Ожидалось хотя бы 1 команда, получено ${parsed.actual}. Проверь файл/диапазон.`
     );
     return;
   }
@@ -322,9 +292,9 @@ uploadForm.addEventListener("submit", async (event) => {
   }
 });
 
-downloadTemplateBtn.addEventListener("click", async () => {
+undoLastActionBtn.addEventListener("click", async () => {
   try {
-    await withButtonLoading(downloadTemplateBtn, "Отмена...", async () => {
+    await withButtonLoading(undoLastActionBtn, "Отмена...", async () => {
       await adminFetch("/api/undo_last_action", { method: "POST" });
       await loadAdminData();
     });
@@ -810,7 +780,7 @@ const parseScore = (value) => {
 };
 
 const START_ROW = 4;
-const END_ROW = 25;
+const MAX_END_ROW = 60;
 const TEAM_COL = "B";
 const TOTAL_COL = "W";
 
@@ -856,14 +826,21 @@ const parseExcelRows = (rows, sheet, sheetName) => {
   const directErrors = [];
   const teamColIndex = colLetterToIndex(TEAM_COL);
   const totalColIndex = colLetterToIndex(TOTAL_COL);
-  for (let r = START_ROW; r <= END_ROW; r += 1) {
+  let consecutiveEmpty = 0;
+  for (let r = START_ROW; r <= MAX_END_ROW; r += 1) {
     const teamAddress = `${TEAM_COL}${r}`;
     const totalAddress = `${TOTAL_COL}${r}`;
     const teamValue = getMergedValue(sheet, teamAddress);
     const totalValue = getMergedValue(sheet, totalAddress);
-    if (String(teamValue || "").trim() || String(totalValue || "").trim()) {
-      hasDirectData = true;
+    const hasTeam = String(teamValue || "").trim();
+    const hasTotal = String(totalValue || "").trim();
+    if (!hasTeam && !hasTotal) {
+      consecutiveEmpty += 1;
+      if (consecutiveEmpty >= 3) break;
+      continue;
     }
+    consecutiveEmpty = 0;
+    hasDirectData = true;
     const name = normalizeTeamName(teamValue);
     const totalScore = parseScore(totalValue);
     if (!name) {
@@ -898,12 +875,12 @@ const parseExcelRows = (rows, sheet, sheetName) => {
         errorCode: "VALIDATION_FAILED",
       };
     }
-    if (directRows.length !== 22) {
+    if (directRows.length < 1) {
       return {
         rows: directRows,
         rowErrors: [],
         errorCode: "EXPECTED_COUNT_MISMATCH",
-        expected: 22,
+        expected: "хотя бы 1",
         actual: directRows.length,
       };
     }

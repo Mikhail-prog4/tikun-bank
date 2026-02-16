@@ -1,5 +1,7 @@
 const {
   PRODUCT_CATEGORIES,
+  escapeHtml,
+  flashButton,
   getRanking,
   formatMoney,
   fetchPublicSettings,
@@ -9,23 +11,6 @@ const {
 } = window.TikunBank;
 
 const cache = window.__CACHE__ || (window.__CACHE__ = {});
-
-const escapeHtml = (value) => {
-  const s = String(value ?? "");
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
-
-const flashButton = (button, ok = true) => {
-  if (!button) return;
-  const className = ok ? "btn--success-flash" : "btn--error-flash";
-  button.classList.add(className);
-  setTimeout(() => button.classList.remove(className), 500);
-};
 
 const getCachedTeams = async () => {
   if (Array.isArray(cache.teams)) return cache.teams;

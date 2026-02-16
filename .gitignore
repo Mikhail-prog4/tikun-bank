@@ -1,5 +1,12 @@
 .vercel
+node_modules/
 .env
 .env.local
 .env.*.local
 public/env.json
+*.log
+.DS_Store
+desktop.ini
+Thumbs.db
+venv/
+.claude/

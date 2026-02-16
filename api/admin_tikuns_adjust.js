@@ -37,11 +37,17 @@ module.exports = async (req, res) => {
       if (teamError || !team) return json(res, 400, { error: "Команда не найдена" });
 
       const newBalance = team.tikuns_balance + amount;
-      const { error: updateError } = await supabase
+      // Conditional update: обновляем только если баланс не изменился между чтением и записью
+      const { data: writeResult, error: updateError } = await supabase
         .from("teams")
         .update({ tikuns_balance: newBalance })
-        .eq("id", teamId);
+        .eq("id", teamId)
+        .eq("tikuns_balance", team.tikuns_balance)
+        .select("id");
       if (updateError) throw updateError;
+      if (!writeResult || !writeResult.length) {
+        return json(res, 409, { error: "Баланс изменился, повторите операцию" });
+      }
 
       const { error } = await supabase.from("balance_history").insert([
         {

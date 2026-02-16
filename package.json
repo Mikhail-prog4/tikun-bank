@@ -3,7 +3,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "check": "node -c api/_utils.js && node -c api/admin_login.js && node -c api/admin_settings.js && node -c api/admin_upload_week.js && node -c api/admin_tikuns_adjust.js && node -c api/admin_teams.js && node -c api/admin_products.js && node -c api/admin_orders.js && node -c api/env.js && node -e \"const fs=require('fs');const c=fs.readFileSync('api/_utils.js','utf8'); if ((c.match(/const jwt = require\\(\\\"jsonwebtoken\\\"\\)/g)||[]).length>1) {throw new Error('Найден дубль jwt');} if ((c.match(/module\\.exports/g)||[]).length>1) {throw new Error('Найден дубль module.exports');} console.log('Проверки пройдены');\""
+    "check": "node -c api/_utils.js && node -c api/admin_login.js && node -c api/admin_settings.js && node -c api/admin_upload_week.js && node -c api/admin_tikuns_adjust.js && node -c api/admin_teams.js && node -c api/admin_products.js && node -c api/admin_orders.js && node -c api/admin_reset_init.js && node -c api/admin_score_adjust.js && node -c api/excel_template.js && node -c api/undo_last_action.js && node -c api/env.js && node -e \"const fs=require('fs');const c=fs.readFileSync('api/_utils.js','utf8'); if ((c.match(/const jwt = require\\(\\\"jsonwebtoken\\\"\\)/g)||[]).length>1) {throw new Error('Найден дубль jwt');} if ((c.match(/module\\.exports/g)||[]).length>1) {throw new Error('Найден дубль module.exports');} console.log('Проверки пройдены');\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
