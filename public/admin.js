@@ -90,6 +90,7 @@ const scoreOp = document.getElementById("score-op");
 const scorePoints = document.getElementById("score-points");
 const scoreReason = document.getElementById("score-reason");
 const scoreSubmitBtn = document.getElementById("score-submit-btn");
+const scoreHistoryEl = document.getElementById("score-history");
 
 const btnOpenTikuns = document.getElementById("btn-open-tikuns");
 const btnOpenScore = document.getElementById("btn-open-score");
@@ -103,6 +104,7 @@ let cachedTeams = [];
 let cachedProducts = [];
 let cachedOrders = [];
 let cachedBalanceHistory = [];
+let cachedScoreHistory = [];
 
 const getToken = () => sessionStorage.getItem("adminToken");
 
@@ -207,6 +209,7 @@ function openScoreModal() {
   const modal = document.getElementById("modal-score");
   if (modal) { modal.classList.remove("hidden"); modal.setAttribute("aria-hidden", "false"); }
   renderScoreTeamSelect();
+  refreshScoreHistory().then(() => renderScoreHistory());
 }
 
 function openDeleteTeamsModal() {
@@ -373,6 +376,8 @@ if (scoreForm) {
       });
       scoreForm.reset();
       await refreshTeams();
+      await refreshScoreHistory();
+      renderScoreHistory();
       flashButton(scoreSubmitBtn, true);
     } catch (error) {
       flashButton(scoreSubmitBtn, false);
@@ -559,6 +564,35 @@ const renderTikuns = async () => {
       <div class="muted">${escapeHtml(formatDate(entry.created_at))}</div>
     `;
     tikunHistory.appendChild(row);
+  });
+};
+
+const refreshScoreHistory = async () => {
+  const payload = await adminFetch("/api/admin_score_adjust");
+  cachedScoreHistory = payload.history || [];
+};
+
+const renderScoreHistory = () => {
+  if (!scoreHistoryEl) return;
+  scoreHistoryEl.innerHTML = "";
+  (cachedScoreHistory || []).slice(0, 15).forEach((row) => {
+    const p = row.payload || {};
+    const teamName = escapeHtml(p.team_name || "Команда");
+    const reason = escapeHtml(p.reason || "");
+    const delta = p.delta;
+    const sign = delta > 0 ? "+" : "";
+    const date = escapeHtml(formatDate(row.created_at));
+    const item = document.createElement("div");
+    item.className = "history-item";
+    item.innerHTML = `
+      <div>
+        <strong>${teamName}</strong>
+        <div class="muted">${reason}</div>
+      </div>
+      <div>${sign}${escapeHtml(delta)} б.</div>
+      <div class="muted">${date}</div>
+    `;
+    scoreHistoryEl.appendChild(item);
   });
 };
 

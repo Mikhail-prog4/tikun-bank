@@ -1,3 +1,4 @@
+require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const { createClient } = require("@supabase/supabase-js");
 

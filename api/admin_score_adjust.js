@@ -9,6 +9,17 @@ module.exports = async (req, res) => {
 
   const supabase = getSupabase();
 
+  if (req.method === "GET") {
+    const { data, error } = await supabase
+      .from("rating_history")
+      .select("id, action, payload, created_at")
+      .eq("action", "score_adjust")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) return json(res, 500, { error: "Не удалось загрузить историю" });
+    return json(res, 200, { history: data || [] });
+  }
+
   if (req.method !== "POST") {
     return json(res, 405, { error: "Метод не поддерживается" });
   }

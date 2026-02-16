@@ -143,13 +143,16 @@ module.exports = async (req, res) => {
 
     // --- Save ranks BEFORE changes (only active) ---
     const ranking = getRanking(teams);
-    for (const entry of ranking) {
-      const { error: rankError } = await supabase
-        .from("teams")
-        .update({ previous_rank: entry.rank })
-        .eq("id", entry.team.id);
-      if (rankError) return respondError("update_previous_rank", rankError);
-    }
+    const rankResults = await Promise.all(
+      ranking.map((entry) =>
+        supabase
+          .from("teams")
+          .update({ previous_rank: entry.rank })
+          .eq("id", entry.team.id)
+      )
+    );
+    const rankError = rankResults.find((r) => r.error);
+    if (rankError) return respondError("update_previous_rank", rankError.error);
 
     // --- Build map of existing teams by normalized name (including inactive) ---
     const teamMap = new Map();
@@ -255,13 +258,11 @@ module.exports = async (req, res) => {
       balanceAdjust[row.team_id] = (balanceAdjust[row.team_id] || 0) + Number(row.amount || 0);
     });
 
-    let updatedTeams = 0;
-    for (const team of refreshedTeams) {
+    const teamUpdates = refreshedTeams.map((team) => {
       const cumulative = scoreTotals[team.id] || 0;
       const weekScore = weekTotals[team.id] || 0;
       const tikuns = Math.round(cumulative * 100) + (balanceAdjust[team.id] || 0);
-
-      const { error: updateError } = await supabase
+      return supabase
         .from("teams")
         .update({
           cumulative_score: cumulative,
@@ -269,9 +270,11 @@ module.exports = async (req, res) => {
           tikuns_balance: tikuns,
         })
         .eq("id", team.id);
-      if (updateError) return respondError("update_team_scores", updateError);
-      updatedTeams += 1;
-    }
+    });
+    const updateResults = await Promise.all(teamUpdates);
+    const updateError = updateResults.find((r) => r.error);
+    if (updateError) return respondError("update_team_scores", updateError.error);
+    const updatedTeams = updateResults.length;
 
     // --- Update current week ---
     const { error: settingsUpdateError } = await supabase
