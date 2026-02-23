@@ -335,6 +335,9 @@ if (scoreForm) {
     const delta = scoreOp && scoreOp.value === "-" ? -points : points;
     const reason = (scoreReason && scoreReason.value || "").trim();
     if (!reason) return;
+    const selectedName = scoreTeam.options[scoreTeam.selectedIndex]
+      ? scoreTeam.options[scoreTeam.selectedIndex].text
+      : "";
     try {
       await adminFetch("/api/admin_score_adjust", {
         method: "POST",
@@ -349,9 +352,14 @@ if (scoreForm) {
       await refreshScoreHistory();
       renderScoreHistory();
       flashButton(scoreSubmitBtn, true);
+      // Видимое уведомление для админа
+      showScoreNotification(
+        `Добавлено! ${selectedName}: ${delta > 0 ? "+" : ""}${delta} б.`,
+        true
+      );
     } catch (error) {
       flashButton(scoreSubmitBtn, false);
-      alert("Не удалось изменить общий балл.");
+      showScoreNotification("Ошибка! Не удалось изменить общий балл.", false);
     }
   });
 }
@@ -542,14 +550,38 @@ const refreshScoreHistory = async () => {
   cachedScoreHistory = payload.history || [];
 };
 
+const showScoreNotification = (message, ok) => {
+  // Удаляем предыдущее уведомление, если есть
+  const prev = document.getElementById("score-notification");
+  if (prev) prev.remove();
+  const el = document.createElement("div");
+  el.id = "score-notification";
+  el.textContent = message;
+  el.style.cssText = ok
+    ? "background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;padding:10px 16px;border-radius:8px;margin:8px 0;font-weight:600;text-align:center"
+    : "background:#ffebee;color:#c62828;border:1px solid #ef9a9a;padding:10px 16px;border-radius:8px;margin:8px 0;font-weight:600;text-align:center";
+  // Вставляем перед историей
+  if (scoreHistoryEl) {
+    scoreHistoryEl.parentNode.insertBefore(el, scoreHistoryEl);
+  } else if (scoreForm) {
+    scoreForm.after(el);
+  }
+  setTimeout(() => el.remove(), 4000);
+};
+
 const renderScoreHistory = () => {
   if (!scoreHistoryEl) return;
   scoreHistoryEl.innerHTML = "";
-  (cachedScoreHistory || []).slice(0, 15).forEach((row) => {
-    const p = row.payload || {};
-    const teamName = escapeHtml(p.team_name || "Команда");
-    const reason = escapeHtml(p.reason || "");
-    const delta = p.delta;
+  if (!cachedScoreHistory || !cachedScoreHistory.length) {
+    scoreHistoryEl.innerHTML = '<div class="muted" style="padding:8px">Нет записей</div>';
+    return;
+  }
+  cachedScoreHistory.slice(0, 15).forEach((row) => {
+    // score_history возвращает плоскую структуру: team_id, amount, reason, created_at
+    const team = cachedTeams.find((t) => t.id === row.team_id);
+    const teamName = escapeHtml(team ? team.name : "Неизвестная команда");
+    const reason = escapeHtml(row.reason || "");
+    const delta = Number(row.amount) || 0;
     const sign = delta > 0 ? "+" : "";
     const date = escapeHtml(formatDate(row.created_at));
     const item = document.createElement("div");
@@ -559,7 +591,7 @@ const renderScoreHistory = () => {
         <strong>${teamName}</strong>
         <div class="muted">${reason}</div>
       </div>
-      <div>${sign}${escapeHtml(delta)} б.</div>
+      <div>${sign}${delta} б.</div>
       <div class="muted">${date}</div>
     `;
     scoreHistoryEl.appendChild(item);
