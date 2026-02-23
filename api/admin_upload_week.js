@@ -243,12 +243,11 @@ module.exports = async (req, res) => {
       .select("team_id,amount");
     if (historyError) return respondError("load_balance_history", historyError);
 
-    // Загружаем ручные корректировки баллов из rating_history
+    // Загружаем ручные корректировки баллов из score_history
+    // (надёжная таблица, аналог balance_history для тикунов)
     const { data: scoreAdjustments, error: scoreAdjError } = await supabase
-      .from("rating_history")
-      .select("action,payload")
-      .eq("action", "score_adjust")
-      .eq("undone", false);
+      .from("score_history")
+      .select("team_id,amount");
     if (scoreAdjError) return respondError("load_score_adjustments", scoreAdjError);
 
     const scoreTotals = {};
@@ -261,13 +260,10 @@ module.exports = async (req, res) => {
       }
     });
 
-    // Суммируем ручные корректировки баллов (score_adjust) по каждой команде
+    // Суммируем ручные корректировки баллов по каждой команде
     const scoreManualAdjust = {};
     (scoreAdjustments || []).forEach((row) => {
-      const p = row.payload;
-      if (p && p.team_id && typeof p.delta === "number") {
-        scoreManualAdjust[p.team_id] = (scoreManualAdjust[p.team_id] || 0) + p.delta;
-      }
+      scoreManualAdjust[row.team_id] = (scoreManualAdjust[row.team_id] || 0) + Number(row.amount || 0);
     });
 
     const balanceAdjust = {};

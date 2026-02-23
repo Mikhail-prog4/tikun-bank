@@ -53,6 +53,15 @@ create table if not exists balance_history (
   created_at timestamptz not null default now()
 );
 
+-- Ручные корректировки баллов (аналог balance_history для тикунов)
+create table if not exists score_history (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references teams(id) on delete restrict,
+  amount numeric not null,
+  reason text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists rating_history (
   id uuid primary key default gen_random_uuid(),
   action text not null,
@@ -83,6 +92,7 @@ create index if not exists teams_cumulative_idx on teams(cumulative_score desc);
 create index if not exists orders_status_idx on orders(status);
 create index if not exists orders_created_idx on orders(created_at desc);
 create index if not exists balance_history_team_idx on balance_history(team_id);
+create index if not exists score_history_team_idx on score_history(team_id);
 create index if not exists rating_history_created_idx on rating_history(created_at desc);
 
 insert into settings (id, current_week)

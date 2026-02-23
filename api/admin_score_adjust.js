@@ -10,10 +10,10 @@ module.exports = async (req, res) => {
   const supabase = getSupabase();
 
   if (req.method === "GET") {
+    // Читаем историю из score_history (надёжная таблица)
     const { data, error } = await supabase
-      .from("rating_history")
-      .select("id, action, payload, created_at")
-      .eq("action", "score_adjust")
+      .from("score_history")
+      .select("id, team_id, amount, reason, created_at")
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) return json(res, 500, { error: "Не удалось загрузить историю" });
@@ -48,6 +48,17 @@ module.exports = async (req, res) => {
       return json(res, 400, { error: "Команда не найдена" });
     }
 
+    // СНАЧАЛА записываем в score_history (надёжный первоисточник)
+    const { error: scoreHistError } = await supabase.from("score_history").insert([
+      {
+        team_id: teamId,
+        amount: delta,
+        reason,
+      },
+    ]);
+    if (scoreHistError) throw scoreHistError;
+
+    // ПОТОМ обновляем cumulative_score в teams
     const currentScore = Number(String(team.cumulative_score ?? "").replace(",", ".")) || 0;
     const newScore = Math.max(0, currentScore + delta);
     const { error: updateError } = await supabase
@@ -56,20 +67,24 @@ module.exports = async (req, res) => {
       .eq("id", teamId);
     if (updateError) throw updateError;
 
-    const { error: historyError } = await supabase.from("rating_history").insert([
-      {
-        action: "score_adjust",
-        payload: {
-          team_id: teamId,
-          team_name: team.name,
-          delta,
-          reason,
-          previous_score: currentScore,
-          new_score: newScore,
+    // Audit-лог в rating_history (необязательный, для истории)
+    try {
+      await supabase.from("rating_history").insert([
+        {
+          action: "score_adjust",
+          payload: {
+            team_id: teamId,
+            team_name: team.name,
+            delta,
+            reason,
+            previous_score: currentScore,
+            new_score: newScore,
+          },
         },
-      },
-    ]);
-    if (historyError) throw historyError;
+      ]);
+    } catch (_ignore) {
+      // rating_history — необязательный audit-лог, не блокируем основную операцию
+    }
 
     return json(res, 200, { ok: true });
   } catch (error) {
