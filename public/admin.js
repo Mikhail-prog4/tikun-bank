@@ -678,8 +678,9 @@ const renderProducts = () => {
     const item = document.createElement("div");
     item.className = "list-item";
     item.innerHTML = `
-      <div>
-        <input type="text" value="${escapeHtml(product.name)}" class="product-name-input" />
+      <div style="flex:1;min-width:0">
+        <input type="text" value="${escapeHtml(product.name)}" class="product-name-input" style="width:100%;margin-bottom:4px" />
+        <textarea class="product-desc-input" rows="2" style="width:100%;margin-bottom:4px;resize:vertical;font-size:13px" placeholder="Описание товара">${escapeHtml(product.description || "")}</textarea>
         <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
           <input type="number" value="${product.price}" class="product-price-input" min="0" step="1" style="width:80px" />
           <span>₮</span>
@@ -696,6 +697,7 @@ const renderProducts = () => {
       </div>
     `;
     const nameInput = item.querySelector(".product-name-input");
+    const descInput = item.querySelector(".product-desc-input");
     const priceInput = item.querySelector(".product-price-input");
     const toggleBtn = item.querySelector('[data-action="toggle"]');
     const saveBtn = item.querySelector('[data-action="save"]');
@@ -724,6 +726,7 @@ const renderProducts = () => {
             body: JSON.stringify({
               id: product.id,
               name: nameInput.value.trim() || product.name,
+              description: descInput.value.trim() || product.description,
               price: Number(priceInput.value),
             }),
           });
