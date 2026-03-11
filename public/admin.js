@@ -680,9 +680,11 @@ const renderProducts = () => {
     item.innerHTML = `
       <div>
         <input type="text" value="${escapeHtml(product.name)}" class="product-name-input" />
-        <div class="meta">${escapeHtml(
-          PRODUCT_CATEGORIES[product.category]
-        )} · ${escapeHtml(product.price)} ₮</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+          <input type="number" value="${product.price}" class="product-price-input" min="0" step="1" style="width:80px" />
+          <span>₮</span>
+          <span class="meta" style="margin-left:8px">${escapeHtml(PRODUCT_CATEGORIES[product.category])}</span>
+        </div>
         <div class="meta">${product.is_active ? "Активен" : "Неактивен"}</div>
       </div>
       <div class="actions">
@@ -694,6 +696,7 @@ const renderProducts = () => {
       </div>
     `;
     const nameInput = item.querySelector(".product-name-input");
+    const priceInput = item.querySelector(".product-price-input");
     const toggleBtn = item.querySelector('[data-action="toggle"]');
     const saveBtn = item.querySelector('[data-action="save"]');
     const deleteBtn = item.querySelector('[data-action="delete"]');
@@ -721,6 +724,7 @@ const renderProducts = () => {
             body: JSON.stringify({
               id: product.id,
               name: nameInput.value.trim() || product.name,
+              price: Number(priceInput.value),
             }),
           });
           await refreshProducts();
